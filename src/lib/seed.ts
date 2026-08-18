@@ -30,15 +30,16 @@ export function createSeedState(): AppState {
     params: { ...DEFAULT_PARAMS },
     riskLocked: false,
     portfolio: {
-      cashCzk: 268000,
+      cashCzk: 258000,
       tranches,
       cycleReferencePriceUsd: 36.8,
       cycleStartedAt: iso(24),
-      cycleLowUsd: 33.18,
+      cycleLowUsd: 31.42,
       cooldownStartedAt: iso(3),
-      lastBuyAt: iso(9),
+      lastBuyAt: iso(5),
       manualPause: false,
-      equityPeakCzk: 268000 + invested * 1.04,
+      equityPeakCzk: 258000 + invested * 1.04,
+
       realizedTrades: [
         { id: "r1", closedAt: iso(31), pnlCzk: 1840 },
         { id: "r2", closedAt: iso(19), pnlCzk: -620 },
