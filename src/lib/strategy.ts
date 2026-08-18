@@ -261,38 +261,55 @@ export function evaluateStrategy(
   )
     status = "COOLDOWN";
 
-  // Prodejní modul
+  // Prodejní modul — vyhodnocení per tranše (každá tranše má vlastní target i stop)
   const gainVsAvg = shares > 0 && avg > 0 ? ((price - avg) / avg) * 100 : null;
-  const bestTranche = [...p.tranches].sort((a, b) => a.priceUsd - b.priceUsd)[0];
-  const gainVsTranche =
-    bestTranche && bestTranche.priceUsd > 0
-      ? ((price - bestTranche.priceUsd) / bestTranche.priceUsd) * 100
-      : null;
+  const trancheViews = buildTrancheViews(p.tranches, price, params);
 
+  // Nouzový ochranný stop má vždy přednost před take-profitem.
+  const stopHit = trancheViews
+    .filter((v) => v.status === "STOP_HIT")
+    .sort((a, b) => a.pnlPct - b.pnlPct)[0];
+  const targetHit = trancheViews
+    .filter((v) => v.status === "TARGET_HIT")
+    .sort((a, b) => b.pnlPct - a.pnlPct)[0];
+
+  let sellCandidate: SellCandidate | null = null;
   let sellSignal = false;
   let sellReason = "";
-  if (shares > 0) {
-    if (params.sellMode === "A" && gainVsAvg !== null && gainVsAvg >= params.sellTargetPct) {
-      sellSignal = true;
-      sellReason = `Režim A: zisk ${gainVsAvg.toFixed(2)} % nad průměrnou cenou pozice ${fmtUsd(
-        avg,
-      )} dosáhl targetu ${params.sellTargetPct} %.`;
-    } else if (
-      params.sellMode === "B" &&
-      gainVsTranche !== null &&
-      gainVsTranche >= params.sellTargetPct
-    ) {
-      sellSignal = true;
-      sellReason = `Režim B: tranše z ${fmtUsd(
-        bestTranche?.priceUsd ?? 0,
-      )} je v zisku ${gainVsTranche.toFixed(2)} % ≥ target ${params.sellTargetPct} %.`;
-    } else if (params.sellMode === "C" && gainVsAvg !== null && gainVsAvg >= params.sellTargetPct) {
-      sellSignal = true;
-      sellReason = `Režim C (ruční potvrzení): cena je ${gainVsAvg.toFixed(
-        2,
-      )} % nad průměrem — signál k prodeji musíš potvrdit ručně, systém nic neodesílá sám.`;
-    }
+
+  if (stopHit) {
+    sellCandidate = { view: stopHit, reason: "EMERGENCY_STOP_20" };
+    sellSignal = true;
+    sellReason = `NOUZOVÝ OCHRANNÝ STOP: tranše z ${fmtUsd(stopHit.buyPriceUsd)} (${fmtNum(
+      stopHit.shares,
+    )} ks) je na ${stopHit.pnlPct.toFixed(2)} %, pod nouzovou hranicí −${
+      params.emergencyStopPct
+    } % (${fmtUsd(stopHit.stopPriceUsd)}). Nejde o běžný krátký stop-loss — je to krajní ochrana kapitálu. Návrh: uzavřít tuto tranši (${fmtNum(
+      stopHit.shares,
+    )} ks).`;
+  } else if (targetHit && params.sellMode !== "C") {
+    sellCandidate = { view: targetHit, reason: "TAKE_PROFIT_6_25" };
+    sellSignal = true;
+    sellReason =
+      params.sellMode === "B"
+        ? `Take-profit per tranše: tranše z ${fmtUsd(targetHit.buyPriceUsd)} dosáhla ${targetHit.pnlPct.toFixed(
+            2,
+          )} % ≥ target ${params.sellTargetPct} % (cílová cena ${fmtUsd(
+            targetHit.targetPriceUsd,
+          )}). Návrh: prodat ${fmtNum(targetHit.shares)} ks z této tranše.`
+        : `Režim A: zisk ${(gainVsAvg ?? 0).toFixed(2)} % nad průměrnou cenou pozice ${fmtUsd(
+            avg,
+          )}; nejvýše zhodnocená tranše z ${fmtUsd(targetHit.buyPriceUsd)} je na ${targetHit.pnlPct.toFixed(
+            2,
+          )} %.`;
+  } else if (targetHit && params.sellMode === "C") {
+    sellCandidate = { view: targetHit, reason: "MANUAL" };
+    sellSignal = true;
+    sellReason = `Režim C (ruční potvrzení): tranše z ${fmtUsd(
+      targetHit.buyPriceUsd,
+    )} je na ${targetHit.pnlPct.toFixed(2)} % — prodej musíš potvrdit ručně.`;
   }
+
 
   let action: ActionKind;
   let reason: string;
