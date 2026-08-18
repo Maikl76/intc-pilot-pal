@@ -163,7 +163,14 @@ export interface StrategySnapshot {
   suggestedValueCzk: number;
   fxWarning: boolean;
   buyBlockedReasons: string[];
+  /** Per-tranche pohled s vlastním targetem a nouzovým stopem. */
+  trancheViews: TrancheView[];
+  /** Tranše doporučená k prodeji (target nebo nouzový stop). */
+  sellCandidate: SellCandidate | null;
+  /** Nouzový stop zasažen alespoň u jedné tranše. */
+  emergencyStopHit: boolean;
 }
+
 
 /**
  * Čistá deterministická evaluace strategie. Nemění stav — pouze popisuje,
