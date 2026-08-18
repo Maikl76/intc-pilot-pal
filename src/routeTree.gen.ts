@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BacktestRouteImport } from './routes/backtest'
+import { Route as HistorieRouteImport } from './routes/historie'
+import { Route as NastaveniRouteImport } from './routes/nastaveni'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BacktestRoute = BacktestRouteImport.update({
+  id: '/backtest',
+  path: '/backtest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistorieRoute = HistorieRouteImport.update({
+  id: '/historie',
+  path: '/historie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NastaveniRoute = NastaveniRouteImport.update({
+  id: '/nastaveni',
+  path: '/nastaveni',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/backtest': typeof BacktestRoute
+  '/historie': typeof HistorieRoute
+  '/nastaveni': typeof NastaveniRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/backtest': typeof BacktestRoute
+  '/historie': typeof HistorieRoute
+  '/nastaveni': typeof NastaveniRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/backtest': typeof BacktestRoute
+  '/historie': typeof HistorieRoute
+  '/nastaveni': typeof NastaveniRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/backtest' | '/historie' | '/nastaveni'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/backtest' | '/historie' | '/nastaveni'
+  id: '__root__' | '/' | '/backtest' | '/historie' | '/nastaveni'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BacktestRoute: typeof BacktestRoute
+  HistorieRoute: typeof HistorieRoute
+  NastaveniRoute: typeof NastaveniRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/backtest': {
+      id: '/backtest'
+      path: '/backtest'
+      fullPath: '/backtest'
+      preLoaderRoute: typeof BacktestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historie': {
+      id: '/historie'
+      path: '/historie'
+      fullPath: '/historie'
+      preLoaderRoute: typeof HistorieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nastaveni': {
+      id: '/nastaveni'
+      path: '/nastaveni'
+      fullPath: '/nastaveni'
+      preLoaderRoute: typeof NastaveniRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BacktestRoute: BacktestRoute,
+  HistorieRoute: HistorieRoute,
+  NastaveniRoute: NastaveniRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

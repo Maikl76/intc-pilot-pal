@@ -9,6 +9,10 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { AppHeader } from "@/components/AppHeader";
+import { Toaster } from "@/components/ui/sonner";
+import { StoreProvider } from "@/lib/store";
+
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -77,14 +81,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "INTC Trading Pilot" },
+      {
+        name: "description",
+        content:
+          "Decision-support a paper-trading nástroj pro mean-reversion strategii na akcii Intel (INTC).",
+      },
+      { property: "og:title", content: "INTC Trading Pilot" },
+      {
+        property: "og:description",
+        content: "Řízení mean-reversion strategie na INTC s PAPER režimem a risk kontrolou.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -94,6 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
+
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -102,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="cs" className="dark">
       <head>
         <HeadContent />
       </head>
@@ -119,8 +129,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <StoreProvider>
+        <div className="flex min-h-screen flex-col">
+          <AppHeader />
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground">
+            INTC Trading Pilot — decision-support nástroj. Nejde o investiční doporučení.
+          </footer>
+        </div>
+        <Toaster position="top-right" richColors />
+      </StoreProvider>
     </QueryClientProvider>
   );
 }
