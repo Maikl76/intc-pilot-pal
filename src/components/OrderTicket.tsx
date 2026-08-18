@@ -17,20 +17,37 @@ export function OrderTicket() {
   const send = useServerFn(submitOrder);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [shares, setShares] = useState<string>("0");
+  const [trancheId, setTrancheId] = useState<string>("");
   const [prepared, setPrepared] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const views = snapshot.trancheViews;
+  const candidateId = snapshot.sellCandidate?.view.tranche.id ?? views[0]?.tranche.id ?? "";
+  const selected = views.find((v) => v.tranche.id === trancheId) ?? views.find((v) => v.tranche.id === candidateId);
+
   useEffect(() => {
-    setShares(
-      side === "BUY" ? String(snapshot.suggestedShares) : String(Number(snapshot.shares.toFixed(2))),
-    );
+    setTrancheId(candidateId);
+  }, [candidateId]);
+
+  useEffect(() => {
+    if (side === "BUY") setShares(String(snapshot.suggestedShares));
+    else setShares(String(Number((selected?.shares ?? 0).toFixed(2))));
     setPrepared(false);
-  }, [side, snapshot.suggestedShares, snapshot.shares]);
+  }, [side, snapshot.suggestedShares, selected?.shares]);
 
   const qty = Number(shares) || 0;
   const valueUsd = qty * quote.priceUsd;
   const valueCzk = valueUsd * state.params.fxUsdCzk;
   const isLive = state.mode === "LIVE";
+
+  const sellReason: "TAKE_PROFIT_6_25" | "EMERGENCY_STOP_20" | "MANUAL" =
+    selected && snapshot.sellCandidate?.view.tranche.id === selected.tranche.id
+      ? snapshot.sellCandidate.reason
+      : selected?.status === "STOP_HIT"
+        ? "EMERGENCY_STOP_20"
+        : selected?.status === "TARGET_HIT"
+          ? "TAKE_PROFIT_6_25"
+          : "MANUAL";
 
   async function execute(confirmed: boolean) {
     if (qty <= 0) {
@@ -54,7 +71,18 @@ export function OrderTicket() {
         toast.error(res.message);
       } else {
         if (side === "BUY") recordBuy(qty, quote.priceUsd, res.message, res.status);
-        else recordSell(qty, quote.priceUsd, res.message, res.status);
+        else
+          recordSell(qty, quote.priceUsd, res.message, res.status, {
+            sellReason,
+            ...(selected
+              ? {
+                  trancheId: selected.tranche.id,
+                  refBuyPriceUsd: selected.buyPriceUsd,
+                  targetPriceUsd: selected.targetPriceUsd,
+                  stopPriceUsd: selected.stopPriceUsd,
+                }
+              : {}),
+          });
         toast.success(res.message);
       }
     } catch {
@@ -64,6 +92,7 @@ export function OrderTicket() {
       setPrepared(false);
     }
   }
+
 
   return (
     <Card className="bg-card p-5">
