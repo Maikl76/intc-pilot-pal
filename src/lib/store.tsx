@@ -13,8 +13,15 @@ import { toast } from "sonner";
 
 import { getQuote } from "./market.functions";
 import { createSeedState } from "./seed";
-import { consecutiveLosses, drawdownPct, evaluateStrategy, type StrategySnapshot } from "./strategy";
-import type { AppState, Quote, StrategyParams, TradingMode } from "./types";
+import {
+  DEFAULT_PARAMS,
+  consecutiveLosses,
+  drawdownPct,
+  evaluateStrategy,
+  type StrategySnapshot,
+} from "./strategy";
+import type { AppState, Quote, SellReason, StrategyParams, TradingMode } from "./types";
+
 
 // v2: nové výchozí prodejní parametry (per-tranche target +6,25 %, nouzový stop −20 %).
 const STORAGE_KEY = "intc-trading-pilot-state-v2";
