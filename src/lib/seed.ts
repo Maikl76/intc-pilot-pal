@@ -19,7 +19,10 @@ export function createSeedState(): AppState {
     { id: "t1", openedAt: iso(24), shares: 11.92, priceUsd: 36.8, mode: "PAPER" as const },
     { id: "t2", openedAt: iso(16), shares: 12.38, priceUsd: 35.42, mode: "PAPER" as const },
     { id: "t3", openedAt: iso(9), shares: 12.86, priceUsd: 34.1, mode: "PAPER" as const },
+    // Demo tranše, která už je nad per-tranche targetem +6,25 %.
+    { id: "t4", openedAt: iso(5), shares: 13.75, priceUsd: 31.9, mode: "PAPER" as const },
   ];
+
   const invested = tranches.reduce((s, t) => s + t.shares * t.priceUsd * fx, 0);
 
   return {
