@@ -31,6 +31,30 @@ export function ActionCard() {
       </div>
       <p className="mt-3 text-sm leading-relaxed text-foreground/90">{snapshot.reason}</p>
 
+      {snapshot.sellCandidate ? (
+        <div
+          className={cn(
+            "mt-3 rounded-md border p-3 text-xs",
+            snapshot.emergencyStopHit
+              ? "border-destructive/60 bg-destructive/10 text-destructive"
+              : "border-success/40 bg-success/10 text-foreground/90",
+          )}
+        >
+          <div className="font-semibold">
+            {snapshot.emergencyStopHit
+              ? "NOUZOVÝ OCHRANNÝ STOP — návrh na uzavření tranše"
+              : "Návrh prodeje konkrétní tranše"}
+          </div>
+          <div className="num mt-1">
+            {fmtNum(snapshot.sellCandidate.view.shares)} ks z tranše nakoupené za{" "}
+            {fmtUsd(snapshot.sellCandidate.view.buyPriceUsd)} · target{" "}
+            {fmtUsd(snapshot.sellCandidate.view.targetPriceUsd)} · nouzový stop{" "}
+            {fmtUsd(snapshot.sellCandidate.view.stopPriceUsd)} · důvod{" "}
+            {snapshot.sellCandidate.reason}
+          </div>
+        </div>
+      ) : null}
+
       {snapshot.buyBlockedReasons.length > 1 ? (
         <ul className="mt-3 space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
           {snapshot.buyBlockedReasons.slice(1).map((r) => (
@@ -38,6 +62,7 @@ export function ActionCard() {
           ))}
         </ul>
       ) : null}
+
 
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
         <span>
