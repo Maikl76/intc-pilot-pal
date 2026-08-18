@@ -129,10 +129,11 @@ function SettingsPage() {
       </Card>
 
       <Card className="bg-card p-6">
-        <h2 className="text-lg font-semibold">Prodejní modul</h2>
+        <h2 className="text-lg font-semibold">Prodejní modul (per tranše)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Definitivní prodejní pravidlo zatím není potvrzené — modul je proto konfigurovatelný.
-          Výchozí je varianta C (ruční potvrzení).
+          Výchozí režim podle posledního backtestu je B — každá tranše má vlastní take-profit
+          {" "}+{p.sellTargetPct} % od své nákupní ceny. Targety se neslučují podle průměrné ceny
+          celé pozice.
         </p>
         <RadioGroup
           className="mt-4 space-y-3"
@@ -140,9 +141,9 @@ function SettingsPage() {
           onValueChange={(v) => updateParam("sellMode", v as "A" | "B" | "C", "Prodejní režim")}
         >
           {[
+            { v: "B", t: "B — per-tranche target nad nákupní cenou dané tranše (default)" },
             { v: "A", t: "A — target % nad průměrnou cenou pozice" },
-            { v: "B", t: "B — target % nad cenou konkrétní tranše" },
-            { v: "C", t: "C — ruční potvrzení signálu (default)" },
+            { v: "C", t: "C — ruční potvrzení signálu" },
           ].map((o) => (
             <div key={o.v} className="flex items-start gap-3 rounded-md border border-border p-3">
               <RadioGroupItem value={o.v} id={`sell-${o.v}`} className="mt-0.5" />
@@ -152,8 +153,22 @@ function SettingsPage() {
             </div>
           ))}
         </RadioGroup>
-        <div className="mt-5">{num("sellTargetPct", "Cílový zisk pro prodej", "%")}</div>
+        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          {num("sellTargetPct", "Take-profit na tranši", "%")}
+          {num("emergencyStopPct", "Nouzový ochranný stop na tranši", "%")}
+        </div>
+        <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs">
+          <strong>Nouzový ochranný stop není běžný krátký stop-loss.</strong> Jde o krajní ochranu
+          kapitálu při hlubokém propadu tranše (default −{p.emergencyStopPct} % od její nákupní
+          ceny). Nikdy se neodesílá automaticky — vždy jde jen o návrh k potvrzení.
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Rozsahy: take-profit {PARAM_LIMITS.sellTargetPct.min}–{PARAM_LIMITS.sellTargetPct.max} %,
+          nouzový stop {PARAM_LIMITS.emergencyStopPct.min}–{PARAM_LIMITS.emergencyStopPct.max} %.
+          Historický backtest není garance budoucího výsledku.
+        </p>
       </Card>
+
 
       <Card className="bg-card p-6">
         <h2 className="text-lg font-semibold">Risk limity</h2>

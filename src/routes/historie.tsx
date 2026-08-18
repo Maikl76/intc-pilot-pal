@@ -65,7 +65,10 @@ function HistoryPage() {
                   <TableHead className="text-right">Hodnota</TableHead>
                   <TableHead>Režim</TableHead>
                   <TableHead>Stav</TableHead>
+                  <TableHead>Důvod prodeje</TableHead>
+                  <TableHead>Ref. nákup / target / stop</TableHead>
                   <TableHead>Poznámka</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -86,9 +89,18 @@ function HistoryPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{o.status}</TableCell>
+                    <TableCell className="num text-xs">{o.sellReason ?? "—"}</TableCell>
+                    <TableCell className="num text-xs text-muted-foreground">
+                      {o.refBuyPriceUsd
+                        ? `${fmtUsd(o.refBuyPriceUsd)} / ${fmtUsd(o.targetPriceUsd ?? 0)} / ${fmtUsd(
+                            o.stopPriceUsd ?? 0,
+                          )}`
+                        : "—"}
+                    </TableCell>
                     <TableCell className="max-w-[22rem] text-xs text-muted-foreground">
                       {o.note}
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>

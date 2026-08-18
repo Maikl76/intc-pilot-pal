@@ -13,21 +13,32 @@ import { toast } from "sonner";
 
 import { getQuote } from "./market.functions";
 import { createSeedState } from "./seed";
-import { consecutiveLosses, drawdownPct, evaluateStrategy, type StrategySnapshot } from "./strategy";
-import type { AppState, Quote, StrategyParams, TradingMode } from "./types";
+import {
+  DEFAULT_PARAMS,
+  consecutiveLosses,
+  drawdownPct,
+  evaluateStrategy,
+  type StrategySnapshot,
+} from "./strategy";
+import type { AppState, Quote, SellReason, StrategyParams, TradingMode } from "./types";
 
-const STORAGE_KEY = "intc-trading-pilot-state-v1";
+
+// v2: nové výchozí prodejní parametry (per-tranche target +6,25 %, nouzový stop −20 %).
+const STORAGE_KEY = "intc-trading-pilot-state-v2";
+
 
 function loadState(): AppState {
   if (typeof window === "undefined") return createSeedState();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return createSeedState();
-    return JSON.parse(raw) as AppState;
+    const parsed = JSON.parse(raw) as AppState;
+    return { ...parsed, params: { ...DEFAULT_PARAMS, ...parsed.params } };
   } catch {
     return createSeedState();
   }
 }
+
 
 const FALLBACK_QUOTE: Quote = {
   symbol: "INTC",
@@ -41,7 +52,16 @@ const FALLBACK_QUOTE: Quote = {
   delayedMinutes: 0,
 };
 
+export interface SellMeta {
+  sellReason: SellReason;
+  trancheId?: string;
+  refBuyPriceUsd?: number;
+  targetPriceUsd?: number;
+  stopPriceUsd?: number;
+}
+
 interface StoreValue {
+
   state: AppState;
   quote: Quote;
   quoteLoading: boolean;
@@ -50,7 +70,14 @@ interface StoreValue {
   setMode: (mode: TradingMode) => void;
   updateParam: <K extends keyof StrategyParams>(key: K, value: StrategyParams[K], label: string) => void;
   recordBuy: (shares: number, priceUsd: number, note: string, status: "SIMULATED" | "SUBMITTED") => void;
-  recordSell: (shares: number, priceUsd: number, note: string, status: "SIMULATED" | "SUBMITTED") => void;
+  recordSell: (
+    shares: number,
+    priceUsd: number,
+    note: string,
+    status: "SIMULATED" | "SUBMITTED",
+    meta?: SellMeta,
+  ) => void;
+
   recordRejected: (side: "BUY" | "SELL", shares: number, priceUsd: number, note: string) => void;
   togglePause: () => void;
   setRiskLocked: (locked: boolean) => void;
@@ -144,19 +171,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [hydrated, state.riskLocked, state.portfolio, state.params, quote.priceUsd]);
 
-  const logSignal = useCallback((s: AppState, priceUsd: number, snap: StrategySnapshot): AppState => ({
-    ...s,
-    signals: [
-      {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        action: snap.action,
-        reason: snap.reason,
-        priceUsd,
-      },
-      ...s.signals,
-    ].slice(0, 200),
-  }), []);
+  const logSignal = useCallback(
+    (s: AppState, priceUsd: number, snap: StrategySnapshot, meta?: SellMeta): AppState => ({
+      ...s,
+      signals: [
+        {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          action: snap.action,
+          reason: snap.reason,
+          priceUsd,
+          ...(meta ?? {}),
+        },
+        ...s.signals,
+      ].slice(0, 200),
+    }),
+    [],
+  );
+
 
   const value: StoreValue = {
     state,
@@ -243,14 +275,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
         return logSignal(next, priceUsd, snapshot);
       }),
-    recordSell: (shares, priceUsd, note, status) =>
+    recordSell: (shares, priceUsd, note, status, meta) =>
       setState((s) => {
         const fx = s.params.fxUsdCzk;
         let remaining = shares;
-        const tranches = [...s.portfolio.tranches].sort((a, b) => a.priceUsd - b.priceUsd);
+        // Prodej konkrétní tranše má přednost; jinak FIFO od nejlevnější tranše.
+        const ordered = meta?.trancheId
+          ? [
+              ...s.portfolio.tranches.filter((t) => t.id === meta.trancheId),
+              ...s.portfolio.tranches.filter((t) => t.id !== meta.trancheId),
+            ]
+          : [...s.portfolio.tranches].sort((a, b) => a.priceUsd - b.priceUsd);
         let costUsd = 0;
-        const kept: typeof tranches = [];
-        for (const t of tranches) {
+        const kept: typeof ordered = [];
+        for (const t of ordered) {
           if (remaining <= 0) {
             kept.push(t);
             continue;
@@ -287,14 +325,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               valueCzk: proceedsUsd * fx,
               mode: s.mode,
               status: status as "SIMULATED" | "SUBMITTED",
-              note,
+              note: meta ? `[${meta.sellReason}] ${note}` : `[MANUAL] ${note}`,
               idempotencyKey: crypto.randomUUID(),
+              sellReason: meta?.sellReason ?? "MANUAL",
+              ...(meta?.trancheId ? { trancheId: meta.trancheId } : {}),
+              ...(meta?.refBuyPriceUsd !== undefined
+                ? { refBuyPriceUsd: meta.refBuyPriceUsd }
+                : {}),
+              ...(meta?.targetPriceUsd !== undefined
+                ? { targetPriceUsd: meta.targetPriceUsd }
+                : {}),
+              ...(meta?.stopPriceUsd !== undefined ? { stopPriceUsd: meta.stopPriceUsd } : {}),
             },
             ...s.orders,
           ].slice(0, 200),
         };
-        return logSignal(next, priceUsd, snapshot);
+        return logSignal(next, priceUsd, snapshot, meta ?? { sellReason: "MANUAL" });
       }),
+
     recordRejected: (side, shares, priceUsd, note) =>
       setState((s) => ({
         ...s,

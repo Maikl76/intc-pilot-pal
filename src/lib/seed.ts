@@ -19,7 +19,10 @@ export function createSeedState(): AppState {
     { id: "t1", openedAt: iso(24), shares: 11.92, priceUsd: 36.8, mode: "PAPER" as const },
     { id: "t2", openedAt: iso(16), shares: 12.38, priceUsd: 35.42, mode: "PAPER" as const },
     { id: "t3", openedAt: iso(9), shares: 12.86, priceUsd: 34.1, mode: "PAPER" as const },
+    // Demo tranše, která už je nad per-tranche targetem +6,25 %.
+    { id: "t4", openedAt: iso(5), shares: 13.75, priceUsd: 31.9, mode: "PAPER" as const },
   ];
+
   const invested = tranches.reduce((s, t) => s + t.shares * t.priceUsd * fx, 0);
 
   return {
@@ -27,15 +30,16 @@ export function createSeedState(): AppState {
     params: { ...DEFAULT_PARAMS },
     riskLocked: false,
     portfolio: {
-      cashCzk: 268000,
+      cashCzk: 258000,
       tranches,
       cycleReferencePriceUsd: 36.8,
       cycleStartedAt: iso(24),
-      cycleLowUsd: 33.18,
+      cycleLowUsd: 31.42,
       cooldownStartedAt: iso(3),
-      lastBuyAt: iso(9),
+      lastBuyAt: iso(5),
       manualPause: false,
-      equityPeakCzk: 268000 + invested * 1.04,
+      equityPeakCzk: 258000 + invested * 1.04,
+
       realizedTrades: [
         { id: "r1", closedAt: iso(31), pnlCzk: 1840 },
         { id: "r2", closedAt: iso(19), pnlCzk: -620 },
@@ -81,7 +85,21 @@ export function createSeedState(): AppState {
         note: "DEMO: třetí tranše, pokles 7,34 % od reference.",
         idempotencyKey: "demo-o3",
       },
+      {
+        id: "o4",
+        createdAt: iso(5),
+        side: "BUY",
+        shares: 13.75,
+        priceUsd: 31.9,
+        valueUsd: 438.63,
+        valueCzk: 10001,
+        mode: "PAPER",
+        status: "SIMULATED",
+        note: "DEMO: čtvrtá tranše, target +6,25 % = 33,89 USD, nouzový stop −20 % = 25,52 USD.",
+        idempotencyKey: "demo-o4",
+      },
     ],
+
     signals: [
       {
         id: "s1",

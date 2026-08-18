@@ -4,6 +4,12 @@ export type StrategyStatus = "ACTIVE" | "COOLDOWN" | "PAUSED";
 
 export type SellMode = "A" | "B" | "C";
 
+/** Důvod prodejního signálu / pokynu. */
+export type SellReason = "TAKE_PROFIT_6_25" | "EMERGENCY_STOP_20" | "MANUAL";
+
+export type TrancheStatus = "OPEN" | "TARGET_HIT" | "STOP_HIT" | "SOLD";
+
+
 export type ActionKind = "KUP" | "NEKUPOVAT" | "PRODAT_CAST" | "DRZET" | "PAUZA";
 
 export type DataSourceKind = "MOCK" | "TRADING212" | "EXTERNAL";
@@ -23,10 +29,13 @@ export interface StrategyParams {
   constantTrancheOnDrawdown: boolean;
   /** Preferovaná obchodní měna. */
   preferredCurrency: "USD" | "CZK";
-  /** Prodejní modul. */
+  /** Prodejní modul (výchozí B — per-tranche target). */
   sellMode: SellMode;
-  /** Cílový zisk pro prodej (%, 0,5 – 5). */
+  /** Take-profit nad nákupní cenou jednotlivé tranše (%, 0,5 – 10). */
   sellTargetPct: number;
+  /** Nouzový ochranný stop pod nákupní cenou jednotlivé tranše (%, 5 – 30). */
+  emergencyStopPct: number;
+
   /** Risk: maximální povolený drawdown od equity peaku (%). */
   maxDrawdownPct: number;
   /** Risk: počet po sobě jdoucích ztrátových prodejů, po kterém se strategie zamkne. */
@@ -56,6 +65,16 @@ export interface OrderRecord {
   note: string;
   /** Klíč pro zamezení duplicit. */
   idempotencyKey: string;
+  /** Prodej: důvod signálu. */
+  sellReason?: SellReason;
+  /** Prodej: ID prodávané tranše. */
+  trancheId?: string;
+  /** Prodej: referenční nákupní cena tranše (USD). */
+  refBuyPriceUsd?: number;
+  /** Prodej: target cena tranše (USD). */
+  targetPriceUsd?: number;
+  /** Prodej: nouzová stop cena tranše (USD). */
+  stopPriceUsd?: number;
 }
 
 export interface SignalRecord {
@@ -64,7 +83,13 @@ export interface SignalRecord {
   action: ActionKind;
   reason: string;
   priceUsd: number;
+  sellReason?: SellReason;
+  trancheId?: string;
+  refBuyPriceUsd?: number;
+  targetPriceUsd?: number;
+  stopPriceUsd?: number;
 }
+
 
 export interface ParamChangeRecord {
   id: string;

@@ -5,6 +5,8 @@ import { AlertsPanel } from "@/components/AlertsPanel";
 import { OrderTicket } from "@/components/OrderTicket";
 import { RiskPanel } from "@/components/RiskPanel";
 import { StatTile } from "@/components/StatTile";
+import { TranchesTable } from "@/components/TranchesTable";
+
 import { Badge } from "@/components/ui/badge";
 import { fmtCzk, fmtNum, fmtPct, fmtUsd } from "@/lib/strategy";
 import { useStore } from "@/lib/store";
@@ -139,16 +141,18 @@ function Dashboard() {
             state.params.sellMode === "A"
               ? "A — nad průměrem"
               : state.params.sellMode === "B"
-                ? "B — nad tranší"
+                ? "B — per tranše"
                 : "C — ruční potvrzení"
           }
-          hint={`Target ${state.params.sellTargetPct} %`}
+          hint={`Target +${state.params.sellTargetPct} % / nouzový stop −${state.params.emergencyStopPct} % na tranši`}
         />
+
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <ActionCard />
+          <TranchesTable />
           <RiskPanel />
         </div>
         <div className="space-y-6">
@@ -156,6 +160,7 @@ function Dashboard() {
           <AlertsPanel />
         </div>
       </div>
+
 
       <p className="text-xs text-muted-foreground">
         Aplikace je decision-support nástroj. Nejde o investiční doporučení; historické výsledky
