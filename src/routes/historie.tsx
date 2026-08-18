@@ -65,7 +65,10 @@ function HistoryPage() {
                   <TableHead className="text-right">Hodnota</TableHead>
                   <TableHead>Režim</TableHead>
                   <TableHead>Stav</TableHead>
+                  <TableHead>Důvod prodeje</TableHead>
+                  <TableHead>Ref. nákup / target / stop</TableHead>
                   <TableHead>Poznámka</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
