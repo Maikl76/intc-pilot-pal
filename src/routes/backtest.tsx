@@ -105,18 +105,44 @@ function BacktestPage() {
             />
             <Row
               label="Prodejní pravidlo"
-              backtest="netestováno — otevřená otázka"
-              def="C — ruční potvrzení"
+              backtest="per-tranche target +6,25 %"
+              def={`B — +${DEFAULT_PARAMS.sellTargetPct} % na tranši`}
               current={
                 p.sellMode === "A"
                   ? `A — ${p.sellTargetPct} % nad průměrem`
                   : p.sellMode === "B"
-                    ? `B — ${p.sellTargetPct} % nad tranší`
+                    ? `B — +${p.sellTargetPct} % na tranši`
                     : `C — ruční potvrzení (target ${p.sellTargetPct} %)`
               }
             />
+            <Row
+              label="Nouzový ochranný stop"
+              backtest="−20 % na tranši"
+              def={`−${DEFAULT_PARAMS.emergencyStopPct} %`}
+              current={`−${p.emergencyStopPct} %`}
+            />
+
           </TableBody>
         </Table>
+      </Card>
+
+      <Card className="bg-card p-6">
+        <h2 className="text-lg font-semibold">Proč +6,25 % a −20 % na tranši</h2>
+        <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            • Per-tranche take-profit +6,25 % byl zvolen jako robustnější kompromis než čisté
+            maximum z historického replay — maximum bylo citlivé na přesné načasování a hůř
+            přenositelné mimo testované období.
+          </li>
+          <li>
+            • Nouzový ochranný stop −20 % na tranši snížil v kontrolním období drawdown, a to za
+            cenu menší části zisku. Není to běžný krátký stop-loss, ale krajní ochrana kapitálu.
+          </li>
+          <li>
+            • Obojí je historická reference z replaye, nikoli garance ani projekce budoucí
+            výkonnosti.
+          </li>
+        </ul>
       </Card>
 
       <Card className="bg-card p-6">
@@ -125,13 +151,14 @@ function BacktestPage() {
           <li>• Replay pracoval s konstantní tranší, bez navyšování během poklesu.</li>
           <li>• Cooldown se počítal v kalendářních, nikoli obchodních dnech.</li>
           <li>
-            • Prodejní pravidlo nebylo v replay definitivně ověřeno — proto je v aplikaci jako
-            konfigurovatelný modul s výchozím ručním potvrzením.
+            • Prodej se vyhodnocuje samostatně pro každou tranši; targety se neslučují podle
+            průměrné ceny pozice.
           </li>
           <li>• FX náklady CZK/USD a poplatky brokera nejsou v replay plně zahrnuty.</li>
-          <li>• Slider targetu 0,5–5 % slouží k budoucímu testu, ne jako ověřený parametr.</li>
+          <li>• Slidery targetu (0,5–10 %) a nouzového stopu (5–30 %) slouží k dalšímu testu.</li>
         </ul>
       </Card>
+
     </div>
   );
 }
