@@ -4,6 +4,12 @@ export type StrategyStatus = "ACTIVE" | "COOLDOWN" | "PAUSED";
 
 export type SellMode = "A" | "B" | "C";
 
+/** Důvod prodejního signálu / pokynu. */
+export type SellReason = "TAKE_PROFIT_6_25" | "EMERGENCY_STOP_20" | "MANUAL";
+
+export type TrancheStatus = "OPEN" | "TARGET_HIT" | "STOP_HIT" | "SOLD";
+
+
 export type ActionKind = "KUP" | "NEKUPOVAT" | "PRODAT_CAST" | "DRZET" | "PAUZA";
 
 export type DataSourceKind = "MOCK" | "TRADING212" | "EXTERNAL";
