@@ -61,7 +61,14 @@ interface StoreValue {
   setMode: (mode: TradingMode) => void;
   updateParam: <K extends keyof StrategyParams>(key: K, value: StrategyParams[K], label: string) => void;
   recordBuy: (shares: number, priceUsd: number, note: string, status: "SIMULATED" | "SUBMITTED") => void;
-  recordSell: (shares: number, priceUsd: number, note: string, status: "SIMULATED" | "SUBMITTED") => void;
+  recordSell: (
+    shares: number,
+    priceUsd: number,
+    note: string,
+    status: "SIMULATED" | "SUBMITTED",
+    meta?: SellMeta,
+  ) => void;
+
   recordRejected: (side: "BUY" | "SELL", shares: number, priceUsd: number, note: string) => void;
   togglePause: () => void;
   setRiskLocked: (locked: boolean) => void;
