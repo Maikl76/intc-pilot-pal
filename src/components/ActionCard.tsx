@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowDownCircle, Ban, Hand, PauseCircle } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { ACTION_LABEL, fmtCzk, fmtUsd } from "@/lib/strategy";
+import { ACTION_LABEL, fmtCzk, fmtNum, fmtUsd } from "@/lib/strategy";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 

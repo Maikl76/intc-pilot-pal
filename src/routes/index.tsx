@@ -139,11 +139,12 @@ function Dashboard() {
             state.params.sellMode === "A"
               ? "A — nad průměrem"
               : state.params.sellMode === "B"
-                ? "B — nad tranší"
+                ? "B — per tranše"
                 : "C — ruční potvrzení"
           }
-          hint={`Target ${state.params.sellTargetPct} %`}
+          hint={`Target +${state.params.sellTargetPct} % / nouzový stop −${state.params.emergencyStopPct} % na tranši`}
         />
+
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
