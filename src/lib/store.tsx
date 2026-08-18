@@ -275,14 +275,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
         return logSignal(next, priceUsd, snapshot);
       }),
-    recordSell: (shares, priceUsd, note, status) =>
+    recordSell: (shares, priceUsd, note, status, meta) =>
       setState((s) => {
         const fx = s.params.fxUsdCzk;
         let remaining = shares;
-        const tranches = [...s.portfolio.tranches].sort((a, b) => a.priceUsd - b.priceUsd);
+        // Prodej konkrétní tranše má přednost; jinak FIFO od nejlevnější tranše.
+        const ordered = meta?.trancheId
+          ? [
+              ...s.portfolio.tranches.filter((t) => t.id === meta.trancheId),
+              ...s.portfolio.tranches.filter((t) => t.id !== meta.trancheId),
+            ]
+          : [...s.portfolio.tranches].sort((a, b) => a.priceUsd - b.priceUsd);
         let costUsd = 0;
-        const kept: typeof tranches = [];
-        for (const t of tranches) {
+        const kept: typeof ordered = [];
+        for (const t of ordered) {
           if (remaining <= 0) {
             kept.push(t);
             continue;
@@ -319,14 +325,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               valueCzk: proceedsUsd * fx,
               mode: s.mode,
               status: status as "SIMULATED" | "SUBMITTED",
-              note,
+              note: meta ? `[${meta.sellReason}] ${note}` : `[MANUAL] ${note}`,
               idempotencyKey: crypto.randomUUID(),
+              sellReason: meta?.sellReason ?? "MANUAL",
+              ...(meta?.trancheId ? { trancheId: meta.trancheId } : {}),
+              ...(meta?.refBuyPriceUsd !== undefined
+                ? { refBuyPriceUsd: meta.refBuyPriceUsd }
+                : {}),
+              ...(meta?.targetPriceUsd !== undefined
+                ? { targetPriceUsd: meta.targetPriceUsd }
+                : {}),
+              ...(meta?.stopPriceUsd !== undefined ? { stopPriceUsd: meta.stopPriceUsd } : {}),
             },
             ...s.orders,
           ].slice(0, 200),
         };
-        return logSignal(next, priceUsd, snapshot);
+        return logSignal(next, priceUsd, snapshot, meta ?? { sellReason: "MANUAL" });
       }),
+
     recordRejected: (side, shares, priceUsd, note) =>
       setState((s) => ({
         ...s,
