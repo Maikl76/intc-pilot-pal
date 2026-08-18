@@ -366,6 +366,10 @@ export function evaluateStrategy(
     suggestedValueCzk,
     fxWarning: params.preferredCurrency !== "USD" || quote.currency !== "USD",
     buyBlockedReasons: blocked,
+    trancheViews,
+    sellCandidate,
+    emergencyStopHit: Boolean(stopHit),
+
   };
 }
 
