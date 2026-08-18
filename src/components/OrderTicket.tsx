@@ -121,6 +121,47 @@ export function OrderTicket() {
         </Button>
       </div>
 
+      {side === "SELL" && views.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <Label>Tranše k prodeji</Label>
+          <div className="space-y-1">
+            {views.map((v) => (
+              <button
+                key={v.tranche.id}
+                type="button"
+                onClick={() => {
+                  setTrancheId(v.tranche.id);
+                  setShares(String(Number(v.shares.toFixed(2))));
+                  setPrepared(false);
+                }}
+                className={`w-full rounded-md border p-2 text-left text-xs ${
+                  selected?.tranche.id === v.tranche.id
+                    ? "border-primary bg-primary/10"
+                    : "border-border"
+                }`}
+              >
+                <span className="num">
+                  {fmtUsd(v.buyPriceUsd)} · {fmtNum(v.shares)} ks · {v.pnlPct.toFixed(2)} % ·{" "}
+                  {v.status === "STOP_HIT"
+                    ? "STOP HIT"
+                    : v.status === "TARGET_HIT"
+                      ? "TARGET HIT"
+                      : "OPEN"}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Důvod prodeje pro log: <span className="num">{sellReason}</span>
+            {selected
+              ? ` · target ${fmtUsd(selected.targetPriceUsd)} · nouzový stop ${fmtUsd(
+                  selected.stopPriceUsd,
+                )}`
+              : ""}
+          </p>
+        </div>
+      ) : null}
+
       <div className="mt-4 space-y-2">
         <Label htmlFor="qty">Množství akcií INTC</Label>
         <Input
@@ -134,6 +175,7 @@ export function OrderTicket() {
           }}
         />
       </div>
+
 
       <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
         <div>
