@@ -52,7 +52,16 @@ const FALLBACK_QUOTE: Quote = {
   delayedMinutes: 0,
 };
 
+export interface SellMeta {
+  sellReason: SellReason;
+  trancheId?: string;
+  refBuyPriceUsd?: number;
+  targetPriceUsd?: number;
+  stopPriceUsd?: number;
+}
+
 interface StoreValue {
+
   state: AppState;
   quote: Quote;
   quoteLoading: boolean;
