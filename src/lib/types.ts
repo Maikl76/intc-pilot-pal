@@ -65,6 +65,16 @@ export interface OrderRecord {
   note: string;
   /** Klíč pro zamezení duplicit. */
   idempotencyKey: string;
+  /** Prodej: důvod signálu. */
+  sellReason?: SellReason;
+  /** Prodej: ID prodávané tranše. */
+  trancheId?: string;
+  /** Prodej: referenční nákupní cena tranše (USD). */
+  refBuyPriceUsd?: number;
+  /** Prodej: target cena tranše (USD). */
+  targetPriceUsd?: number;
+  /** Prodej: nouzová stop cena tranše (USD). */
+  stopPriceUsd?: number;
 }
 
 export interface SignalRecord {
@@ -73,7 +83,13 @@ export interface SignalRecord {
   action: ActionKind;
   reason: string;
   priceUsd: number;
+  sellReason?: SellReason;
+  trancheId?: string;
+  refBuyPriceUsd?: number;
+  targetPriceUsd?: number;
+  stopPriceUsd?: number;
 }
+
 
 export interface ParamChangeRecord {
   id: string;
