@@ -412,3 +412,16 @@ export const ACTION_LABEL: Record<ActionKind, string> = {
   DRZET: "DRŽET",
   PAUZA: "PAUZA",
 };
+
+export const SELL_REASON_LABEL: Record<SellReason, string> = {
+  TAKE_PROFIT_6_25: "TAKE_PROFIT_6_25",
+  EMERGENCY_STOP_20: "EMERGENCY_STOP_20",
+  MANUAL: "MANUAL",
+};
+
+export const TRANCHE_STATUS_LABEL: Record<TrancheStatus, string> = {
+  OPEN: "OPEN",
+  TARGET_HIT: "TARGET HIT",
+  STOP_HIT: "STOP HIT",
+  SOLD: "SOLD",
+};
