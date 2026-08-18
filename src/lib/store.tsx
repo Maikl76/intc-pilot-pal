@@ -25,11 +25,13 @@ function loadState(): AppState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return createSeedState();
-    return JSON.parse(raw) as AppState;
+    const parsed = JSON.parse(raw) as AppState;
+    return { ...parsed, params: { ...DEFAULT_PARAMS, ...parsed.params } };
   } catch {
     return createSeedState();
   }
 }
+
 
 const FALLBACK_QUOTE: Quote = {
   symbol: "INTC",
