@@ -5,6 +5,8 @@ import { AlertsPanel } from "@/components/AlertsPanel";
 import { OrderTicket } from "@/components/OrderTicket";
 import { RiskPanel } from "@/components/RiskPanel";
 import { StatTile } from "@/components/StatTile";
+import { TranchesTable } from "@/components/TranchesTable";
+
 import { Badge } from "@/components/ui/badge";
 import { fmtCzk, fmtNum, fmtPct, fmtUsd } from "@/lib/strategy";
 import { useStore } from "@/lib/store";
