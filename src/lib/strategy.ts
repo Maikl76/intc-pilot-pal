@@ -3,8 +3,11 @@ import type {
   AppState,
   PortfolioState,
   Quote,
+  SellReason,
   StrategyParams,
   StrategyStatus,
+  Tranche,
+  TrancheStatus,
 } from "./types";
 
 export const DEFAULT_PARAMS: StrategyParams = {
@@ -15,8 +18,10 @@ export const DEFAULT_PARAMS: StrategyParams = {
   reboundPct: 3,
   constantTrancheOnDrawdown: true,
   preferredCurrency: "USD",
-  sellMode: "C",
-  sellTargetPct: 2,
+  // Výchozí prodej podle posledního backtestu: per-tranche target.
+  sellMode: "B",
+  sellTargetPct: 6.25,
+  emergencyStopPct: 20,
   maxDrawdownPct: 20,
   maxConsecutiveLosses: 3,
   fxUsdCzk: 22.8,
@@ -28,11 +33,56 @@ export const PARAM_LIMITS = {
   stopAddDropPct: { min: 2, max: 20, step: 0.5 },
   cooldownDays: { min: 0, max: 30, step: 1 },
   reboundPct: { min: 0.5, max: 10, step: 0.5 },
-  sellTargetPct: { min: 0.5, max: 5, step: 0.1 },
+  sellTargetPct: { min: 0.5, max: 10, step: 0.25 },
+  emergencyStopPct: { min: 5, max: 30, step: 0.5 },
   maxDrawdownPct: { min: 5, max: 50, step: 1 },
   maxConsecutiveLosses: { min: 1, max: 10, step: 1 },
   fxUsdCzk: { min: 15, max: 30, step: 0.1 },
 } as const;
+
+export interface TrancheView {
+  tranche: Tranche;
+  shares: number;
+  buyPriceUsd: number;
+  currentPriceUsd: number;
+  pnlPct: number;
+  pnlCzk: number;
+  targetPriceUsd: number;
+  stopPriceUsd: number;
+  status: TrancheStatus;
+}
+
+/** Per-tranche pohled: target +X %, nouzový stop −Y % od nákupní ceny tranše. */
+export function buildTrancheViews(
+  tranches: Tranche[],
+  priceUsd: number,
+  params: StrategyParams,
+): TrancheView[] {
+  return tranches.map((t) => {
+    const target = t.priceUsd * (1 + params.sellTargetPct / 100);
+    const stop = t.priceUsd * (1 - params.emergencyStopPct / 100);
+    const pnlPct = t.priceUsd > 0 ? ((priceUsd - t.priceUsd) / t.priceUsd) * 100 : 0;
+    const status: TrancheStatus =
+      priceUsd <= stop ? "STOP_HIT" : priceUsd >= target ? "TARGET_HIT" : "OPEN";
+    return {
+      tranche: t,
+      shares: t.shares,
+      buyPriceUsd: t.priceUsd,
+      currentPriceUsd: priceUsd,
+      pnlPct,
+      pnlCzk: (priceUsd - t.priceUsd) * t.shares * params.fxUsdCzk,
+      targetPriceUsd: target,
+      stopPriceUsd: stop,
+      status,
+    };
+  });
+}
+
+export interface SellCandidate {
+  view: TrancheView;
+  reason: SellReason;
+}
+
 
 export function daysBetween(fromIso: string, to: Date): number {
   const from = new Date(fromIso);
