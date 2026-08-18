@@ -84,7 +84,21 @@ export function createSeedState(): AppState {
         note: "DEMO: třetí tranše, pokles 7,34 % od reference.",
         idempotencyKey: "demo-o3",
       },
+      {
+        id: "o4",
+        createdAt: iso(5),
+        side: "BUY",
+        shares: 13.75,
+        priceUsd: 31.9,
+        valueUsd: 438.63,
+        valueCzk: 10001,
+        mode: "PAPER",
+        status: "SIMULATED",
+        note: "DEMO: čtvrtá tranše, target +6,25 % = 33,89 USD, nouzový stop −20 % = 25,52 USD.",
+        idempotencyKey: "demo-o4",
+      },
     ],
+
     signals: [
       {
         id: "s1",
