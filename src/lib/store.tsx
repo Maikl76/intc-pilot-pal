@@ -171,19 +171,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [hydrated, state.riskLocked, state.portfolio, state.params, quote.priceUsd]);
 
-  const logSignal = useCallback((s: AppState, priceUsd: number, snap: StrategySnapshot): AppState => ({
-    ...s,
-    signals: [
-      {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        action: snap.action,
-        reason: snap.reason,
-        priceUsd,
-      },
-      ...s.signals,
-    ].slice(0, 200),
-  }), []);
+  const logSignal = useCallback(
+    (s: AppState, priceUsd: number, snap: StrategySnapshot, meta?: SellMeta): AppState => ({
+      ...s,
+      signals: [
+        {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          action: snap.action,
+          reason: snap.reason,
+          priceUsd,
+          ...(meta ?? {}),
+        },
+        ...s.signals,
+      ].slice(0, 200),
+    }),
+    [],
+  );
+
 
   const value: StoreValue = {
     state,
