@@ -29,10 +29,13 @@ export interface StrategyParams {
   constantTrancheOnDrawdown: boolean;
   /** Preferovaná obchodní měna. */
   preferredCurrency: "USD" | "CZK";
-  /** Prodejní modul. */
+  /** Prodejní modul (výchozí B — per-tranche target). */
   sellMode: SellMode;
-  /** Cílový zisk pro prodej (%, 0,5 – 5). */
+  /** Take-profit nad nákupní cenou jednotlivé tranše (%, 0,5 – 10). */
   sellTargetPct: number;
+  /** Nouzový ochranný stop pod nákupní cenou jednotlivé tranše (%, 5 – 30). */
+  emergencyStopPct: number;
+
   /** Risk: maximální povolený drawdown od equity peaku (%). */
   maxDrawdownPct: number;
   /** Risk: počet po sobě jdoucích ztrátových prodejů, po kterém se strategie zamkne. */
