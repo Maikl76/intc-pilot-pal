@@ -16,7 +16,9 @@ import { createSeedState } from "./seed";
 import { consecutiveLosses, drawdownPct, evaluateStrategy, type StrategySnapshot } from "./strategy";
 import type { AppState, Quote, StrategyParams, TradingMode } from "./types";
 
-const STORAGE_KEY = "intc-trading-pilot-state-v1";
+// v2: nové výchozí prodejní parametry (per-tranche target +6,25 %, nouzový stop −20 %).
+const STORAGE_KEY = "intc-trading-pilot-state-v2";
+
 
 function loadState(): AppState {
   if (typeof window === "undefined") return createSeedState();
