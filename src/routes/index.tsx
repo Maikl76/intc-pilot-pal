@@ -150,6 +150,7 @@ function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <ActionCard />
+          <TranchesTable />
           <RiskPanel />
         </div>
         <div className="space-y-6">
@@ -157,6 +158,7 @@ function Dashboard() {
           <AlertsPanel />
         </div>
       </div>
+
 
       <p className="text-xs text-muted-foreground">
         Aplikace je decision-support nástroj. Nejde o investiční doporučení; historické výsledky
