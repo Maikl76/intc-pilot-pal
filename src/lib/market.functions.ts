@@ -13,9 +13,33 @@ export const getQuote = createServerFn({ method: "GET" }).handler(async () => {
   const external = process.env["MARKET_DATA_API_KEY"];
 
   if (external) {
-    // TODO: napojit Finnhub / Twelve Data adaptér:
-    // const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=INTC&token=${external}`)
-    // Do té doby padáme na mock, ale hlásíme, že klíč existuje.
+    // EXTERNAL adaptér: Finnhub quote endpoint (reálná data).
+    try {
+      const res = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=INTC&token=${encodeURIComponent(external)}`,
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { c?: number; pc?: number };
+        const priceUsd = Number(data.c ?? 0);
+        const previousCloseUsd = Number(data.pc ?? 0);
+        if (priceUsd > 0 && previousCloseUsd > 0) {
+          return {
+            symbol: "INTC",
+            priceUsd,
+            previousCloseUsd,
+            changePct: Number((((priceUsd - previousCloseUsd) / previousCloseUsd) * 100).toFixed(2)),
+            currency: "USD",
+            timestamp: new Date().toISOString(),
+            source: "EXTERNAL" as const,
+            sourceLabel: "Finnhub (reálná data)",
+            delayedMinutes: 0,
+          };
+        }
+      }
+      // Neúspěch nebo neplatná data → pokračujeme na fallback mockQuote().
+    } catch {
+      // Chyba sítě/API → fallback na mockQuote().
+    }
   }
   if (t212) {
     // TODO: GET /api/v0/equity/portfolio → cena je dostupná jen s otevřenou pozicí.
