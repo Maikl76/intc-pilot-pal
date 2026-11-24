@@ -92,13 +92,14 @@ const dateTime = (timestamp: number) =>
 
 export function IntelEvidence() {
   const query = useQuery({
-    queryKey: ["intel-intelligence-v1"],
+    queryKey: ["intel-intelligence-v2"],
     queryFn: () => getIntelIntelligence(),
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
     retry: 1,
   });
   const [topic, setTopic] = useState<"all" | NewsTopic>("all");
+  const [sourceScope, setSourceScope] = useState<"primary" | "media" | "all">("primary");
   const [search, setSearch] = useState("");
   const [evidence, setEvidence] = useState<EvidenceState>(emptyState);
   const [hydrated, setHydrated] = useState(false);
@@ -188,13 +189,24 @@ export function IntelEvidence() {
   }
 
   const items = query.data?.items ?? [];
+  const scopedItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          sourceScope === "all" ||
+          (sourceScope === "primary" ? item.kind !== "news" : item.kind === "news"),
+      ),
+    [items, sourceScope],
+  );
+  const primaryCount = items.filter((item) => item.kind !== "news").length;
+  const mediaCount = items.filter((item) => item.kind === "news").length;
   const newCount =
     evidence.lastReviewedAt === null
       ? null
-      : items.filter((item) => item.publishedAt > evidence.lastReviewedAt!).length;
+      : scopedItems.filter((item) => item.publishedAt > evidence.lastReviewedAt!).length;
   const filtered = useMemo(
     () =>
-      items.filter(
+      scopedItems.filter(
         (item) =>
           (topic === "all" || item.topic === topic) &&
           (!showOnlyNew ||
@@ -205,7 +217,7 @@ export function IntelEvidence() {
               .toLocaleLowerCase()
               .includes(search.trim().toLocaleLowerCase())),
       ),
-    [items, topic, search, showOnlyNew, evidence.lastReviewedAt],
+    [scopedItems, topic, search, showOnlyNew, evidence.lastReviewedAt],
   );
   const latestPrimary = items.find((item) => item.kind !== "news");
   const primaryFailure = query.data?.providers.some(
@@ -223,9 +235,9 @@ export function IntelEvidence() {
             </div>
             <h2 className="text-xl font-semibold">Co se změnilo u Intelu</h2>
             <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Původní titulky s časem a odkazem. Tvrzení firmy, regulatorní podání a zprávy médií
-              mají vlastní označení. Témata se třídí podle titulku; význam události ověř v
-              dokumentu.
+              Výchozí přehled obsahuje tiskové zprávy Intelu a regulatorní podání. Doplňková média
+              si můžeš zapnout ve filtru zdrojů. Každý záznam má původní titulek, čas a odkaz;
+              význam události ověř v dokumentu.
             </p>
           </div>
           <Button
@@ -255,7 +267,7 @@ export function IntelEvidence() {
             <div className="flex flex-wrap items-center gap-2">
               {newCount !== null && (
                 <Badge variant={newCount ? "default" : "secondary"}>
-                  {newCount} publikovaných od kontroly
+                  {newCount} publikovaných od kontroly ve zvoleném zdroji
                 </Badge>
               )}
               <Button
@@ -268,6 +280,20 @@ export function IntelEvidence() {
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-56 flex-1 space-y-1.5 text-sm">
+              <span>Zdroj zpráv</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3"
+                value={sourceScope}
+                onChange={(event) =>
+                  setSourceScope(event.target.value as "primary" | "media" | "all")
+                }
+              >
+                <option value="primary">Primární · Intel IR a SEC ({primaryCount})</option>
+                <option value="media">Doplňková média ({mediaCount})</option>
+                <option value="all">Všechny zdroje ({items.length})</option>
+              </select>
+            </label>
             <label className="min-w-48 flex-1 space-y-1.5 text-sm">
               <span>Téma</span>
               <select
@@ -308,6 +334,13 @@ export function IntelEvidence() {
               Jen od poslední kontroly
             </label>
           </div>
+          {sourceScope !== "primary" && (
+            <p className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+              Mediální titulky vybírá pro INTC poskytovatel Finnhub; mohou zahrnovat širší sektorový
+              kontext. Nejde o nezávislé potvrzení události. Odkaz může vést přes přesměrování
+              Finnhubu na původní článek.
+            </p>
+          )}
           {query.isError && (
             <div
               role="alert"
@@ -371,9 +404,9 @@ export function IntelEvidence() {
             </ul>
           ) : (
             <p className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
-              {items.length
+              {scopedItems.length
                 ? "Zvolenému filtru neodpovídá žádná načtená událost."
-                : "Žádné ověřitelné položky nejsou načtené. To neznamená, že se nic důležitého nestalo."}
+                : "Ve zvoleném zdroji nejsou načtené žádné ověřitelné položky. To neznamená, že se nic důležitého nestalo; zkontroluj dostupnost zdroje níže."}
             </p>
           )}
           <details className="rounded-md border border-border p-3 text-sm">
@@ -400,10 +433,11 @@ export function IntelEvidence() {
                 </div>
               ))}
               <p className="text-muted-foreground">
-                Primární RSS obsahují omezený počet posledních položek. Obnova nejvýše jednou za 5
-                minut při otevřené stránce. Tento přehled není úplný archiv ani služba upozornění na
-                pozadí. Vyjádření firmy není nezávislé potvrzení a samotný cenový pohyb neprokazuje
-                manipulaci.
+                Primární RSS obsahují omezený počet posledních položek. Doplňková média jsou omezena
+                na 60 nejnovějších načtených titulků; tento limit neomezuje primární zprávy ani
+                podání. Témata se třídí podle titulku. Obnova nejvýše jednou za 5 minut při otevřené
+                stránce. Tento přehled není úplný archiv ani služba upozornění na pozadí. Vyjádření
+                firmy není nezávislé potvrzení a samotný cenový pohyb neprokazuje manipulaci.
               </p>
             </div>
           </details>

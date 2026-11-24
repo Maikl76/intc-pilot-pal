@@ -59,10 +59,9 @@ function AdvancedChart() {
   }, []);
   return (
     <div className="space-y-3">
-      <div
-        ref={container}
-        className="tradingview-widget-container h-[390px] overflow-hidden rounded-xl"
-      />
+      <div className="h-[390px] overflow-hidden rounded-xl">
+        <div ref={container} className="tradingview-widget-container h-full w-full" />
+      </div>
       <p className="text-sm text-muted-foreground">
         {failed ? "Graf se nepodařilo načíst. " : ""}Samostatný graf od{" "}
         <a

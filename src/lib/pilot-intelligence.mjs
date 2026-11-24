@@ -166,7 +166,9 @@ export function parseFinnhubNews(raw, now = Date.now()) {
       topic: newsTopic(title, "news"),
     });
   }
-  return dedupeNews(items);
+  // Bound the supplementary feed independently. A burst of media coverage must
+  // never remove older primary filings when all provider results are combined.
+  return dedupeNews(items).slice(0, 60);
 }
 
 export function dedupeNews(items) {
@@ -180,5 +182,5 @@ export function dedupeNews(items) {
     const key = url.replace(/\/$/, "");
     if (!map.has(key)) map.set(key, item);
   }
-  return [...map.values()].sort((a, b) => b.publishedAt - a.publishedAt).slice(0, 60);
+  return [...map.values()].sort((a, b) => b.publishedAt - a.publishedAt);
 }
