@@ -21,16 +21,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Stránka neexistuje</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          Tato stránka už není dostupná. Pokračuj na obchodní přehled.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Obchodní přehled
           </Link>
         </div>
       </div>
@@ -49,10 +49,10 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Stránku se nepodařilo načíst
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Obnov stránku nebo se vrať na přehled. Uložené cvičné obchody zůstávají v tomto prohlížeči.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -62,13 +62,13 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Zkusit znovu
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Obchodní přehled
           </a>
         </div>
       </div>
@@ -85,12 +85,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Decision-support a paper-trading nástroj pro mean-reversion strategii na akcii Intel (INTC).",
+          "Intel Pilot: cenová data, cvičné obchodování, zprávy s původními zdroji a kontrola rizika.",
       },
       { property: "og:title", content: "INTC Trading Pilot" },
       {
         property: "og:description",
-        content: "Řízení mean-reversion strategie na INTC s PAPER režimem a risk kontrolou.",
+        content: "Cvičné obchodování s Intelem, původní zdroje zpráv a kontrola rizika.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -136,8 +136,8 @@ function RootComponent() {
           <main className="flex-1">
             <Outlet />
           </main>
-          <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground">
-            INTC Trading Pilot 2.0 — PAPER, žádné reálné objednávky. Nejde o investiční doporučení.
+          <footer className="border-t border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            Intel Pilot · Cvičné obchodování a vlastní analýza. Výsledky simulací nejsou zárukou budoucích výnosů.
           </footer>
         </div>
         <Toaster position="top-right" richColors />

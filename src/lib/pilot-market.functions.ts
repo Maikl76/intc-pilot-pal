@@ -1,48 +1,162 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseYahoo,parseFinnhub,selectQuote,type PilotQuote } from "./pilot-quotes.mjs";
+import {
+  parseYahoo,
+  parseFinnhub,
+  selectQuote,
+  type PilotQuote,
+  type QuoteDiagnostic,
+} from "./pilot-quotes.mjs";
 export type { PilotQuote } from "./pilot-quotes.mjs";
 
-const unavailable=(message:string):PilotQuote=>({status:"UNAVAILABLE",price:null,open:null,previousClose:null,timestamp:null,receivedAt:Date.now(),message,source:"Yahoo Finance / Finnhub",session:"CLOSED",points:[]});
-let cache:PilotQuote|null=null;
-let fetchedAt=0;
-let pending:Promise<PilotQuote>|null=null;
-async function json(url:string,headers:Record<string,string>={}):Promise<unknown>{
-  const r=await fetch(url,{headers:{Accept:"application/json",...headers},signal:AbortSignal.timeout(6500)});
-  if(!r.ok)throw Error("HTTP "+r.status);
-  return r.json();
+const CACHE_MS = 15_000;
+const TIMEOUT_MS = 6_500;
+let lastGood: PilotQuote | null = null;
+let lastResponse: PilotQuote | null = null;
+let fetchedAt = 0;
+let pending: Promise<PilotQuote> | null = null;
+
+async function json(url: string, headers: Record<string, string> = {}): Promise<unknown> {
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", ...headers },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
-async function loadQuote():Promise<PilotQuote>{
-  const errors:string[]=[];
-  const yahoo=async():Promise<PilotQuote|null>=>{
-    // Unofficial public chart endpoint, no credentials. Subject to rate limits and terms.
-    for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
-      try{
-        const raw=await json("https://"+host+"/v8/finance/chart/INTC?range=1d&interval=1m&includePrePost=true",{"User-Agent":"Mozilla/5.0","Referer":"https://finance.yahoo.com/"});
-        const result=parseYahoo(raw,Date.now());if(result)return result;
-        errors.push(host+": neplatná odpověď");
-      }catch(e){errors.push(host+": "+(e instanceof Error?e.message:"nedostupný"));}
+function safeError(error: unknown): string {
+  if (error instanceof Error && /^HTTP \d{3}$/.test(error.message)) return error.message;
+  if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
+    return "Vypršel čas spojení";
+  return "Zdroj není dostupný nebo vrátil neplatná data";
+}
+async function loadQuote(): Promise<PilotQuote> {
+  const diagnostics: QuoteDiagnostic[] = [];
+  const yahoo = async (): Promise<PilotQuote | null> => {
+    // Fixed symbol/hosts; no user-controlled URL. This public endpoint is unofficial.
+    for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
+      const start = Date.now();
+      try {
+        const raw = await json(
+          `https://${host}/v8/finance/chart/INTC?range=1d&interval=1m&includePrePost=true`,
+          {
+            "User-Agent": "Mozilla/5.0",
+            Referer: "https://finance.yahoo.com/",
+          },
+        );
+        const result = parseYahoo(raw, Date.now());
+        if (!result || result.timestamp === null) throw new Error("Invalid quote");
+        diagnostics.push({
+          source: `Yahoo Finance (${host})`,
+          status: "OK",
+          checkedAt: Date.now(),
+          latencyMs: Date.now() - start,
+          timestamp: result.timestamp,
+          message: "INTC / USD; čas převzatý od poskytovatele",
+        });
+        return result;
+      } catch (error) {
+        diagnostics.push({
+          source: `Yahoo Finance (${host})`,
+          status: "ERROR",
+          checkedAt: Date.now(),
+          latencyMs: Date.now() - start,
+          message: safeError(error),
+        });
+      }
     }
     return null;
   };
-  const finnhub=async():Promise<PilotQuote|null>=>{
-    const key=typeof process!=="undefined"?process.env["MARKET_DATA_API_KEY"]:undefined;
-    if(!key)return null;
-    try{
-      const raw=await json("https://finnhub.io/api/v1/quote?symbol=INTC",{"X-Finnhub-Token":key});
-      const result=parseFinnhub(raw,Date.now());if(result)return result;
-      errors.push("Finnhub: neplatná odpověď");
-    }catch{errors.push("Finnhub: nedostupný");}
-    return null;
+  const finnhub = async (): Promise<PilotQuote | null> => {
+    const key = typeof process !== "undefined" ? process.env["MARKET_DATA_API_KEY"] : undefined;
+    if (!key) {
+      diagnostics.push({
+        source: "Finnhub",
+        status: "NOT_CONFIGURED",
+        checkedAt: Date.now(),
+        message: "Volitelný záložní zdroj není nastavený",
+      });
+      return null;
+    }
+    const start = Date.now();
+    try {
+      const raw = await json("https://finnhub.io/api/v1/quote?symbol=INTC", {
+        "X-Finnhub-Token": key,
+      });
+      const result = parseFinnhub(raw, Date.now());
+      if (!result || result.timestamp === null) throw new Error("Invalid quote");
+      diagnostics.push({
+        source: "Finnhub",
+        status: "OK",
+        checkedAt: Date.now(),
+        latencyMs: Date.now() - start,
+        timestamp: result.timestamp,
+        message: "Pevný dotaz INTC; čas převzatý od poskytovatele",
+      });
+      return result;
+    } catch (error) {
+      diagnostics.push({
+        source: "Finnhub",
+        status: "ERROR",
+        checkedAt: Date.now(),
+        latencyMs: Date.now() - start,
+        message: safeError(error),
+      });
+      return null;
+    }
   };
-  const quotes=await Promise.all([yahoo(),finnhub()]);
-  const best=selectQuote(quotes,Date.now());
-  if(best&&(!cache||cache.timestamp===null||best.timestamp!>=cache.timestamp)){cache=best;return best;}
-  if(cache)return {...cache,message:"Zobrazuji poslední úspěšně načtenou cenu. Novější kotace není dostupná. "+errors.join(" · ")};
-  return unavailable("Nepodařilo se načíst cenu INTC. "+errors.join(" · ")+" Zkontroluj poskytovatele; pro trénink lze zadat vlastní cenu.");
+  const candidates = await Promise.all([yahoo(), finnhub()]);
+  const checkedAt = Date.now();
+  const best = selectQuote(candidates, checkedAt);
+  if (
+    best &&
+    best.timestamp !== null &&
+    (!lastGood || lastGood.timestamp === null || best.timestamp >= lastGood.timestamp)
+  ) {
+    lastGood = { ...best, diagnostics, checkedAt, cached: false };
+    return lastGood;
+  }
+  if (lastGood)
+    return {
+      ...lastGood,
+      diagnostics,
+      checkedAt,
+      cached: true,
+      message:
+        "Zobrazuji poslední úspěšně načtenou cenu. Novější data se nepodařilo ověřit; původní tržní čas zůstává zachovaný.",
+    };
+  return {
+    status: "UNAVAILABLE",
+    symbol: "INTC",
+    currency: "USD",
+    price: null,
+    open: null,
+    previousClose: null,
+    timestamp: null,
+    receivedAt: checkedAt,
+    checkedAt,
+    source: "Yahoo Finance / Finnhub",
+    session: "CLOSED",
+    points: [],
+    diagnostics,
+    cached: false,
+    message:
+      "Cena INTC není dostupná. Obnov načtení nebo zkontroluj stav zdrojů; aplikace nevytváří náhradní cenu.",
+  };
 }
-export const getPilotQuote=createServerFn({method:"GET"}).handler(async():Promise<PilotQuote>=>{
-  if(pending)return pending;
-  if(cache&&Date.now()-fetchedAt<12000)return cache;
-  pending=loadQuote().finally(()=>{fetchedAt=Date.now();pending=null;});
-  return pending;
-});
+export const getPilotQuote = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PilotQuote> => {
+    if (pending) return pending;
+    // Cache failures too, retaining their diagnostics on every response.
+    if (lastResponse && Date.now() - fetchedAt < CACHE_MS) return lastResponse;
+    pending = loadQuote()
+      .then((result) => {
+        lastResponse = result;
+        return result;
+      })
+      .finally(() => {
+        fetchedAt = Date.now();
+        pending = null;
+      });
+    return pending;
+  },
+);

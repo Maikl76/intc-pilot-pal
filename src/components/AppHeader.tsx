@@ -1,9 +1,65 @@
 import { Link } from "@tanstack/react-router";
-import { Activity } from "lucide-react";
-import { usePilot,usd } from "@/lib/pilot-store";
-const NAV=[{to:"/",label:"Trading"},{to:"/historie",label:"Historie / import"},{to:"/nastaveni",label:"Nastavení"},{to:"/backtest",label:"Backtest"}] as const;
-export function AppHeader(){const {quote}=usePilot();return <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur"><div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3">
-  <Link to="/" className="flex items-center gap-2"><Activity className="h-5 w-5 text-primary"/><span className="font-semibold">INTC Trading Pilot 2.0</span></Link>
-  <nav className="flex flex-wrap items-center gap-1 text-sm">{NAV.map(item=><Link key={item.to} to={item.to} className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground" activeProps={{className:"bg-secondary text-foreground"}} activeOptions={{exact:item.to==="/"}}>{item.label}</Link>)}</nav>
-  <div className="ml-auto text-right text-xs"><span className="font-semibold text-success">PAPER ONLY</span><div className="text-muted-foreground">{quote?.status==="OK"&&quote.price!=null?usd(quote.price):"Bez kotace"}</div></div>
-  </div></header>;}
+import { Activity, ShieldCheck } from "lucide-react";
+import { usePilot, usd } from "@/lib/pilot-store";
+const NAV = [
+  { to: "/", label: "Obchodní přehled" },
+  { to: "/zpravy", label: "Zprávy a důkazy" },
+  { to: "/riziko", label: "Riziko a scénáře" },
+  { to: "/historie", label: "Historie" },
+  { to: "/backtest", label: "Backtest" },
+  { to: "/nastaveni", label: "Nastavení" },
+] as const;
+export function AppHeader() {
+  const { quote } = usePilot();
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <Link
+          to="/"
+          className="flex shrink-0 items-center gap-3"
+          aria-label="Intel Pilot, obchodní přehled"
+        >
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+            <Activity className="size-6" />
+          </span>
+          <div>
+            <span className="block text-lg font-semibold tracking-tight">
+              INTEL <span className="font-normal text-muted-foreground">PILOT</span>
+            </span>
+            <span className="block text-xs tracking-[0.15em] text-muted-foreground">
+              DATA. PLÁN. DISCIPLÍNA.
+            </span>
+          </div>
+        </Link>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <div className="hidden text-right sm:block">
+            <span className="text-xs text-muted-foreground">NASDAQ · INTC</span>
+            <div className="num text-sm font-medium">
+              {quote?.status === "OK" && quote.price != null ? usd(quote.price) : "Čekám na data"}
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+            <ShieldCheck className="size-4" />
+            CVIČNÝ ÚČET
+          </span>
+        </div>
+      </div>
+      <nav
+        aria-label="Hlavní navigace"
+        className="mx-auto flex max-w-[1440px] gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8"
+      >
+        {NAV.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className="whitespace-nowrap border-b-2 border-transparent px-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            activeProps={{ className: "border-primary text-primary" }}
+            activeOptions={{ exact: item.to === "/" }}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}

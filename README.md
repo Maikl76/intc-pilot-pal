@@ -1,39 +1,88 @@
-# INTC Trading Pilot 2.0
+# Intel Pilot
 
-Český nástroj pro analýzu a **PAPER simulaci**, nikoli automatické obchodování. Žádné skutečné pokyny Trading 212 ani jinému brokerovi. Větev 2.0 používá nový izolovaný stav prohlížeče; starý lokální stav se automaticky nepřepisuje ani nemigruje.
+Česká aplikace pro rozhodování o akciích Intel (NASDAQ: INTC), cvičné obchodování, dohledatelné zprávy a kontrolu rizika. Navazuje na původní projekt `intc-pilot-pal` v Lovable. Neprovádí skutečné pokyny brokerovi.
 
-## Výchozí experiment
-- Dlouhodobá evidence: rozpočet 300 000 Kč, množství a průměr zadává uživatel. Není zdrojem PAPER hotovosti.
-- PAPER: 200 000 Kč, tranše nejvýše 50 000 Kč, rezerva 50 000 Kč, max. 3 pozice, modelový kurz 22,38 CZK/USD.
-- Jeden vstup za hlavní seanci; pokles 1 USD od otevření; do 11:30 New York; +1 USD target, −1,50 USD stop, ukončení do konce stejné seance; nepřidávat při záporném gapu alespoň 5 %. Odhad nákladů 0,02 USD/akcii/stranu.
-- PAPER risk lock při poklesu od špičky 10 000 Kč, ruční potvrzení každého simulovaného nákupu/prodeje. Odemknutí nemaže dosažený drawdown; otevřené pozice lze zavírat i při locku.
-- Vše jsou nastavitelné hypotézy, ne ověřené doporučení.
+## Co lze dělat
 
-## Použití
-1. Trading: aktuální kotace a kontrola pravidel. Pokud zdroj chybí nebo je kotace starší než 90 s, nové PAPER obchody jsou blokovány. Historický graf je výslovně označen. Aplikace nesleduje trh při vypnutém prohlížeči; stop ani časový signál nic automaticky neprovedou. Rebound z uzavřených svíček a vícedenní pevné časové výstupy jsou zatím jen v backtestu.
-2. Backtest: nahraj 1min/5min OHLC CSV nebo ZIP (např. oba exporty v INTEL_DATA.zip). Časové pásmo musí být obsaženo v timestampu. Limit 30 MB. Vyber řadu a období; nepřekrývej 1min a 5min řady. Použij pouze Intel data. Spusť pevnou strategii nebo 1 728 variant v chronologickém train/test rozdělení. Výpočet běží lokálně ve Web Workeru. Optimalizace omezuje rozsah na 250 seancí.
-3. Historie: import Trading 212 CSV, pouze nákupy/prodeje INTC v USD, broker Result po měnách a FX poplatky samostatně, pomocné sousední BUY/SELL dvojice, test dosažení cíle po skutečných vstupech a export CSV. Data zůstávají v paměti prohlížeče, po obnovení je potřeba import opakovat. Import nesynchronizuje stav účtu.
-4. Nastavení: dlouhodobá evidence a PAPER parametry. Změna rozpočtu sama nepřipíše virtuální peníze; reset PAPER účtu vyžaduje potvrzení. Nastavení, dlouhodobá evidence a PAPER historie se ukládají do localStorage tohoto zařízení (není šifrovaný trezor).
+- **Obchodní přehled:** skutečná poslední dostupná cena, čas pozorování a zdroj, stav seance, minutový graf, diagnostika výpadků a volitelný samostatný graf TradingView.
+- **Tržní cvičení:** ruční virtuální nákup a celý/částečný prodej podle použitelné tržní kotace. Výsledky zahrnují zadané modelové náklady.
+- **Vlastní scénář:** samostatný virtuální účet s ručně nastavenou, jednoznačně fiktivní cenou. Funguje i bez datového zdroje nebo mimo burzovní hodiny. Nesdílí pozice ani výsledky s tržním cvičením.
+- **Zprávy a důkazy:** titulky Intel IR, přehled podání SEC přes Intel IR, volitelně média přes Finnhub. Původní čas, odkaz, typ zdroje a filtrování. Vlastní poznámky k 18A, 14A, Foundry a financím.
+- **Riziko a scénáře:** kapitál, čistý výsledek cíle, ztráta na stopu, nutná úspěšnost a citlivost na pokles ceny. Srovnání uzavřené seance INTC/SOXX/QQQ, průměr true range, historická volatilita a relativní objem.
+- **Historie:** lokální import Trading 212 CSV s oddělenými měnami brokerova výsledku a FX poplatků; cvičné dílčí výstupy s původem cen; CSV export.
+- **Backtest:** import 1min/5min OHLC CSV nebo ZIP, pevná strategie, 1 728 variant s chronologickým rozdělením, náklady, otevřené pozice a propad účtu.
+- **Nastavení a záloha:** dlouhodobá evidence, limity, oddělený reset aktivního cvičného účtu, validovaná JSON záloha obou účtů.
 
-## Datový zdroj
-Na serveru nastav **MARKET_DATA_API_KEY** (Finnhub). API klíče nikdy nedávej do kódu, veřejného repozitáře ani prohlížeče. Používá se čas kotace od poskytovatele, nikoli čas HTTP odpovědi. Chybějící nebo opožděná data nejsou nahrazena mock cenou. Kvalita a prodleva závisí na tarifu. Verze 2 nemá autentizovanou broker integraci; nepovolovat LIVE a nevkládat broker klíče pro tuto verzi. Původní nevyužité moduly jsou zachovány v repozitáři kvůli kompatibilitě, ale starý endpoint submitOrder LIVE vždy odmítne.
+## První cvičení
 
-## Metodika
-- Backtest počítá hlavní úplné 390minutové seance (America/New_York, DST); neúplné a zkrácené dny vynechává. Všechny chybějící dny nelze bez kalendáře detekovat. Nejde o tick replay.
-- Limit nebo lepší open při vstupu; stop nebo horší open po gapu; při současném zásahu stopu/cíle konzervativně stop; žádný take-profit ve vstupní svíčce. Při odrazu signál až na close, nákup nejdříve v následující svíčce. Bez modelu fronty, hloubky trhu a skluzu.
-- Celé kusy, fixní náklady na akcii na každé straně, hotovost, rezerva a limit vázaného kapitálu. Otevřená pozice je oceněna posledním close minus předpokládané likvidační náklady. Kontroluje se identita equity a realizovaného/nerealizovaného P/L.
-- Drawdown je z close každé svíčky; denní drawdown zvlášť. Historický model neaplikuje PAPER risk lock. Skutečná výše rizika může být vyšší.
-- Train skóre: P/L minus 0,5 × max. drawdown; alespoň 5 vstupů. Vybraný model se vyhodnotí jednou na pozdějším období, znovu od stejného počátečního kapitálu. Celé období je popisné, nikoli nezávislé ověření. Opakovaný výběr podle testu z něj dělá trénink. Výsledky nejsou záruka budoucích výnosů.
-- Diagnostika skutečných nákupů ignoruje vstupní svíčku, vyžaduje úplný horizont. Test high ≥ target není důkaz skutečného plnění nebo výsledku prodeje.
+1. Otevři Obchodní přehled. U tržní ceny zkontroluj zdroj a její skutečný čas.
+2. Pro okamžité seznámení vyber **Vlastní scénář**. Výchozí cena 57 USD je fiktivní, nikoli odhad trhu.
+3. Zadej počet kusů, který se vejde do limitu tranše, a cvičně nakup.
+4. Tlačítkem **Cena +1 USD** změň scénář. U otevřené pozice zvol **Cvičně prodat**, případně prodej jen část.
+5. V Historii se zobrazí samostatný výsledek scénáře. Pro tržní cvičení přepni zpět na jeho účet.
 
-## Vývoj a ověření
+Příklad: 80 akcií × (58 − 57) = 80 USD hrubého. Při modelových nákladech 0,02 USD na kus za každou stranu je čistý výsledek 76,80 USD. Aby se nákup 80 kusů při 57 USD vešel do tranše, je třeba zohlednit kapitál, modelový kurz a náklady; výchozí tranše 50 000 Kč na takový nákup nestačí. Limity lze před cvičením upravit v Nastavení.
+
+## Výchozí pravidla jsou experiment
+
+- Dlouhodobý plán 300 000 Kč; počet a průměr se vyplňují ručně. Nula znamená nezadanou evidenci, nikoli odhad skutečného účtu.
+- Každý cvičný účet začíná s 200 000 Kč přepočtenými modelovým kurzem 22,38 CZK/USD. Při nákupech/prodejích pracuje s USD.
+- Tranše nejvýše 50 000 Kč, rezerva 50 000 Kč, nejvýše tři otevřené pozice.
+- Výchozí cíl +1 USD na akcii, stop −1,50 USD, modelové náklady 0,02 USD na akcii a stranu. Náklady nejsou deklarovaným sazebníkem Trading 212.
+- Volitelná přísná strategie: pokles 1 USD od otevření, nákup do 11:30 New York, nejvýše jeden vstup denně, filtr záporného gapu 5 %, denní časový výstup.
+- Ochrana před dalším propadem 10 000 Kč. Blokuje nákupy, dovoluje prodeje. Vědomé odemčení nastaví novou ochrannou referenci; celková historická ztráta a maximální zaznamenaný propad se nemažou.
+
+Stop, cíl i časový výstup jsou upozornění pro ruční potvrzení. Aplikace při zavřeném prohlížeči nesleduje ceny, neplní pokyny a neposílá upozornění. Návrat ceny ani zisk nejsou zaručené.
+
+## Datové zdroje a jejich omezení
+
+### Kotace
+
+Server zkouší dva pevné Yahoo Finance chart endpointy. Volitelně použije Finnhub, pokud je v hostingu nastavena serverová proměnná `MARKET_DATA_API_KEY`. Klíče se nikdy neposílají do prohlížeče, záloh ani veřejného GitHubu.
+
+- Obnova přibližně po 15 s při otevřené aplikaci, serverová krátká cache.
+- Při výpadku se uchová původní čas posledního úspěšného pozorování; žádná vymyšlená náhradní cena.
+- Ruční tržní cvičení vyžaduje cenu stejného dne a stejné seance, nejvýše 20 minut starou. Jde o model podle dostupného pozorování, nikoli garantované živé plnění.
+- Přísná strategie vyžaduje hlavní seanci a cenu nejvýše 2 minuty starou. Uchovaná odpověď po selhání obnovy nebo podstatný rozpor mezi současnými zdroji ji nepovolí.
+- Kalendář obsahuje publikované svátky a zkrácené seance Nasdaq pro rok 2026. Pro ostatní roky přísný režim vyžaduje datovanou seanci poskytovatele. Mimořádné uzavření burzy a individuální obchodní halty nejsou zaručeně rozpoznány.
+- Yahoo rozhraní je neoficiální, bez garance dostupnosti a prodlevy. TradingView je samostatný graf a jeho data se nepoužívají jako cena pro cvičný pokyn.
+
+### Zprávy
+
+Primární zdroje: [Intel press releases RSS](https://www.intc.com/news-events/press-releases/rss), [Intel SEC filings RSS](https://www.intc.com/filings-reports/all-sec-filings/rss). Přehled podání je zrcadlo Intel IR; podání se ověřuje otevřením původního dokumentu. Firemní tvrzení není nezávislým ověřením technologie nebo zákaznického kontraktu. Témata se třídí podle titulků, bez generovaných investičních tvrzení.
+
+Server obnovuje zdroje nejvýše jednou za 5 minut. Při výpadku zachová obsah maximálně 24 hodin a viditelně označí chybu zdroje. RSS má omezený rozsah; nejde o úplný archiv ani automatické posouzení významu události.
+
+### Historický kontext
+
+Denní OHLC INTC, SOXX a QQQ pochází z Yahoo Finance. Dnešní datum se úmyslně nezahrnuje ani po uzavření trhu. Srovnání vyžaduje shodný počáteční i koncový den výnosu; zastaralá poslední seance je označená. True range je prostý průměr 14 hodnot, bez Wilderova vyhlazení. Volatilita je výběrová směrodatná odchylka posledních 20 logaritmických výnosů × √252. Objem se srovnává s předchozími 20 seancemi. Mimořádný výnos se porovnává s 20 předcházejícími výnosy, bez zahrnutí posuzovaného dne. Tyto statistiky neprokazují manipulaci a nepředpovídají obrat.
+
+## Úložiště a soukromí
+
+Cvičné účty, nastavení a dlouhodobá evidence zůstávají v localStorage daného prohlížeče. Starý klíč `intc-pilot-v2-private` je zachován pro validovanou migraci do schématu v3. Neplatná data se nepřepíšou bez možnosti jejich stažení. Konflikt mezi okny se rozpozná před zápisem; nejde o transakční databázi nebo víceuživatelský broker systém.
+
+JSON záloha obsahuje oba cvičné účty, nastavení a dlouhodobou evidenci. Importované cenové a transakční CSV zůstávají pouze v paměti a po obnově se znovu načítají. Poznámky ke zprávám mají samostatný klíč `intc-pilot-evidence-v1` a vlastní stažení JSON. Žádný osobní výpis není součástí veřejného repozitáře.
+
+## Metodika backtestu
+
+- Pouze úplné 390minutové hlavní seance; zkrácené a neúplné se vynechávají. Úplně chybějící obchodní dny nelze vždy odhalit.
+- Vstup na limitu nebo lepším open; stop na limitu nebo horším open po gapu. Při současném zásahu stopu a cíle má přednost stop. Žádný ziskový target ve vstupní svíčce.
+- Odraz se potvrzuje až uzavřenou svíčkou, vstupuje se nejdříve v další. Reportované časy jsou začátky svíček; délky držení jsou přibližné.
+- Celé kusy, náklady obou stran, rezerva a limit vázaného kapitálu. Účetní identita hotovosti a realizovaného/nerealizovaného výsledku se kontroluje.
+- Propad se měří z close každé svíčky, denní propad samostatně. Model nezná skutečnou frontu pokynů, order book ani maximální intrabar ztrátu. Cvičný risk lock není součástí historické optimalizace.
+- 1 728 variant, tréninkové skóre P/L − 0,5 × propad, alespoň pět vstupů. Výběr z mnoha variant na krátkých datech se snadno přizpůsobí náhodě. Pět vstupů není důkaz výhody; opakované ladění podle testu z něj udělá součást výběru.
+- Diagnostika dosažení cíle po skutečném nákupu ignoruje vstupní svíčku, vyžaduje úplný horizont; high nad cílem není důkaz skutečného plnění.
+
+## Vývoj
+
+Projekt používá existující Bun lockfile a Lovable TanStack Start konfiguraci.
+
 ```sh
-npm install
-npm run test:pilot
-npm run build
-npm run dev
+bun install --frozen-lockfile
+bun run test:pilot
+bun run typecheck
+bun run build
+bun run dev
 ```
-Jednotkové testy jsou v tests/pilot-engine.test.mjs. Před nasazením vyzkoušej upload obou datových řad, import výpisu, simulaci, exporty a chování bez klíče/po uzavření trhu. Osobní data ani cenové exporty se do repozitáře neukládají.
 
-## Oprava kotací a ručního PAPER režimu
-Yahoo Finance (neoficiální veřejný chart endpoint) bez klíče, Finnhub volitelně. Cena zůstává viditelná i mimo seanci se skutečným časem. Ruční PAPER dovoluje premarket/after-hours a kotace do 20 min stáří, přísná strategie pouze hlavní seanci a do 2 min. Zpožděná kotace není garantovaná živá cena. Limity kapitálu, rezervy a risk lock platí vždy. Pokud poskytovatelé neodpovídají, obchod je blokovaný.
+Testy pokrývají účetní identity, dílčí prodeje, náklady a rezervu, oddělení scénářů, migraci, čas kotace, předchozí závěr, spory zdrojů, seance, XML a odkazy zpráv a historické statistiky. Produkční sestavení generuje klienta i Cloudflare Worker server. Zachovej publikovanou historii Git; nepoužívej force push.

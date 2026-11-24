@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BacktestRouteImport } from './routes/backtest'
 import { Route as HistorieRouteImport } from './routes/historie'
 import { Route as NastaveniRouteImport } from './routes/nastaveni'
+import { Route as RizikoRouteImport } from './routes/riziko'
+import { Route as ZpravyRouteImport } from './routes/zpravy'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +36,32 @@ const NastaveniRoute = NastaveniRouteImport.update({
   path: '/nastaveni',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RizikoRoute = RizikoRouteImport.update({
+  id: '/riziko',
+  path: '/riziko',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZpravyRoute = ZpravyRouteImport.update({
+  id: '/zpravy',
+  path: '/zpravy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/backtest': typeof BacktestRoute
   '/historie': typeof HistorieRoute
   '/nastaveni': typeof NastaveniRoute
+  '/riziko': typeof RizikoRoute
+  '/zpravy': typeof ZpravyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/backtest': typeof BacktestRoute
   '/historie': typeof HistorieRoute
   '/nastaveni': typeof NastaveniRoute
+  '/riziko': typeof RizikoRoute
+  '/zpravy': typeof ZpravyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +69,23 @@ export interface FileRoutesById {
   '/backtest': typeof BacktestRoute
   '/historie': typeof HistorieRoute
   '/nastaveni': typeof NastaveniRoute
+  '/riziko': typeof RizikoRoute
+  '/zpravy': typeof ZpravyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/backtest' | '/historie' | '/nastaveni'
+  fullPaths:
+    '/' | '/backtest' | '/historie' | '/nastaveni' | '/riziko' | '/zpravy'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/backtest' | '/historie' | '/nastaveni'
-  id: '__root__' | '/' | '/backtest' | '/historie' | '/nastaveni'
+  to: '/' | '/backtest' | '/historie' | '/nastaveni' | '/riziko' | '/zpravy'
+  id:
+    | '__root__'
+    | '/'
+    | '/backtest'
+    | '/historie'
+    | '/nastaveni'
+    | '/riziko'
+    | '/zpravy'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +93,8 @@ export interface RootRouteChildren {
   BacktestRoute: typeof BacktestRoute
   HistorieRoute: typeof HistorieRoute
   NastaveniRoute: typeof NastaveniRoute
+  RizikoRoute: typeof RizikoRoute
+  ZpravyRoute: typeof ZpravyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +127,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NastaveniRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/riziko': {
+      id: '/riziko'
+      path: '/riziko'
+      fullPath: '/riziko'
+      preLoaderRoute: typeof RizikoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zpravy': {
+      id: '/zpravy'
+      path: '/zpravy'
+      fullPath: '/zpravy'
+      preLoaderRoute: typeof ZpravyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +149,8 @@ const rootRouteChildren: RootRouteChildren = {
   BacktestRoute: BacktestRoute,
   HistorieRoute: HistorieRoute,
   NastaveniRoute: NastaveniRoute,
+  RizikoRoute: RizikoRoute,
+  ZpravyRoute: ZpravyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

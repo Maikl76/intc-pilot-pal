@@ -11,3 +11,17 @@ test("OHLC CSV and exclusion of incomplete sessions",()=>{const rows=Array.from(
 test("Trading 212 result currencies separate from matched trade cash flow",()=>{const s="Action,Time (UTC),Ticker,ID,No. of shares,Price / share,Currency (Price / share),Result,Currency (Result),Currency conversion fee,Currency (Currency conversion fee)\nMarket buy,2026-11-02 14:30:00+00:00,INTC,a,80,57,USD,,,0,USD\nLimit sell,2026-11-02 14:40:00+00:00,INTC,b,80,58,USD,-50,CZK,0,USD";const t=parseTransactions(s);const a=summarize(t.transactions);assert.equal(a.result.CZK,-50);assert.equal(a.pairGrossUsd,80);const d=day("2026-11-02",[[58,59,56.9,57.2],[57.2,58.2,57,58.1]]);assert.equal(actualTargets(t.transactions,[d],5,1,0).hits,1)});
 test("overnight stop gap uses adverse open",()=>{const r=run([day("2026-11-02",[[58,58,56.9,57]]),day("2026-11-03",[[53,54,52,53]],-7)],{...p,holdDays:-1,gapPct:0});assert.equal(r.trades[0].exit,53);assert.equal(r.trades[0].reason,"STOP")});
 test("capital cap remains enforced across open positions",()=>{const days=Array.from({length:7},(_,i)=>day("2026-11-"+String(2+i).padStart(2,"0"),[[58,58,56.9,57]],0));const r=run(days,{...p,slotCzk:100000,reserveCzk:50000,maxSlots:10,holdDays:-1,stopUsd:0,targetUsd:10});assert.ok(r.curve.every(x=>x.committedCzk<=150000+1e-5));assert.ok(r.finalCashCzk>=50000-1e-5);assert.ok(r.blocked>0)});
+test("nonpositive stop prices are rejected rather than silently disabling protection",()=>{
+ const d=day("2026-11-02",[[58,59,56.9,57.2],[57.2,57.4,53,54]]);
+ for(const stopUsd of [57,58,100])assert.throws(()=>run([d],{...p,stopUsd}),/Stop musí být menší než vstupní cena/);
+ assert.equal(run([d],{...p,stopUsd:0,holdDays:-1}).open.length,1);
+});
+test("losses and costs reduce equity while cash reserve remains unspent",()=>{
+ const days=[day("2026-11-02",[[58,58,56.9,57.1],[57.1,57.5,55.4,55.5]]),day("2026-11-03",[[56,56,54.9,55],[55,55.2,53.4,53.5]])];
+ const r=run(days,{...p,slotCzk:50000,reserveCzk:50000});
+ assert.equal(r.stops,2);
+ assert.ok(r.totalCzk<0);
+ assert.ok(r.finalCashCzk>=p.reserveCzk);
+ assert.ok(Math.abs(r.finalCashCzk-(p.capitalCzk+r.realizedCzk))<1e-6);
+ assert.equal(r.unrealizedCzk,0);
+});
