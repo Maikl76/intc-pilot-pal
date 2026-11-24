@@ -34,3 +34,6 @@ npm run build
 npm run dev
 ```
 Jednotkové testy jsou v tests/pilot-engine.test.mjs. Před nasazením vyzkoušej upload obou datových řad, import výpisu, simulaci, exporty a chování bez klíče/po uzavření trhu. Osobní data ani cenové exporty se do repozitáře neukládají.
+
+## Oprava kotací a ručního PAPER režimu
+Yahoo Finance (neoficiální veřejný chart endpoint) bez klíče, Finnhub volitelně. Cena zůstává viditelná i mimo seanci se skutečným časem. Ruční PAPER dovoluje premarket/after-hours a kotace do 20 min stáří, přísná strategie pouze hlavní seanci a do 2 min. Zpožděná kotace není garantovaná živá cena. Limity kapitálu, rezervy a risk lock platí vždy. Pokud poskytovatelé neodpovídají, obchod je blokovaný.

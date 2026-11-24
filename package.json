@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:pilot": "node --test tests/pilot-engine.test.mjs"
+    "test:pilot": "node --test tests/pilot-engine.test.mjs tests/pilot-quotes.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
