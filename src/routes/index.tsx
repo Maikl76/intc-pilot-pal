@@ -7,7 +7,7 @@ import { ny,sessions } from "@/lib/pilot-engine.mjs";
 import { useMemo } from "react";
 import { LineChart,Line,XAxis,YAxis,Tooltip,ResponsiveContainer,ReferenceLine } from "recharts";
 export const Route=createFileRoute("/")({component:Dashboard,head:()=>({meta:[{title:"Trading | INTC Pilot 2.0"}]})});
-function Metric({label,value,detail}:{label:string;value:string;detail?:string}){return <Card className="space-y-1 p-4"><div className="text-xs text-muted-foreground">{label}</div><div className="num text-xl font-semibold">{value}</div>{detail&&<div className="text-xs text-muted-foreground">{detail}</div>}</Card>;}
+function Metric({label,value,detail}:{label:string;value:string;detail?:string|undefined}){return <Card className="space-y-1 p-4"><div className="text-xs text-muted-foreground">{label}</div><div className="num text-xl font-semibold">{value}</div>{detail&&<div className="text-xs text-muted-foreground">{detail}</div>}</Card>;}
 function Dashboard(){
   const {settings:p,paper,core,quote,quoteLoading,entry,now,hydrated,storageError,buy,sell,toggleLock,markets}=usePilot();
   const market=ny(now),price=entry.fresh?quote?.price??null:null;

@@ -1,163 +1,44 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ACTION_LABEL, fmtCzk, fmtDateTime, fmtNum, fmtUsd } from "@/lib/strategy";
-import { useStore } from "@/lib/store";
-
-export const Route = createFileRoute("/historie")({
-  head: () => ({
-    meta: [
-      { title: "Historie signálů a pokynů | INTC Trading Pilot" },
-      {
-        name: "description",
-        content:
-          "Kompletní log signálů strategie, simulovaných i live pokynů a všech změn parametrů strategie na INTC.",
-      },
-      { property: "og:title", content: "Historie signálů a pokynů | INTC Trading Pilot" },
-      {
-        property: "og:description",
-        content: "Audit trail: signály, PAPER/LIVE objednávky a změny parametrů.",
-      },
-    ],
-  }),
-  component: HistoryPage,
-});
-
-function HistoryPage() {
-  const { state } = useStore();
-
-  return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Historie</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Audit trail signálů, objednávek a změn parametrů. Data jsou uložena lokálně v prohlížeči —
-          žádné secrety zde nejsou.
-        </p>
-      </div>
-
-      <Tabs defaultValue="orders">
-        <TabsList>
-          <TabsTrigger value="orders">Objednávky</TabsTrigger>
-          <TabsTrigger value="signals">Signály</TabsTrigger>
-          <TabsTrigger value="params">Změny parametrů</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="orders">
-          <Card className="bg-card p-2">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Čas</TableHead>
-                  <TableHead>Strana</TableHead>
-                  <TableHead className="text-right">Ks</TableHead>
-                  <TableHead className="text-right">Cena</TableHead>
-                  <TableHead className="text-right">Hodnota</TableHead>
-                  <TableHead>Režim</TableHead>
-                  <TableHead>Stav</TableHead>
-                  <TableHead>Důvod prodeje</TableHead>
-                  <TableHead>Ref. nákup / target / stop</TableHead>
-                  <TableHead>Poznámka</TableHead>
-
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {state.orders.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="num text-xs">{fmtDateTime(o.createdAt)}</TableCell>
-                    <TableCell
-                      className={o.side === "BUY" ? "text-success" : "text-warning"}
-                    >
-                      {o.side === "BUY" ? "Nákup" : "Prodej"}
-                    </TableCell>
-                    <TableCell className="num text-right">{fmtNum(o.shares)}</TableCell>
-                    <TableCell className="num text-right">{fmtUsd(o.priceUsd)}</TableCell>
-                    <TableCell className="num text-right">{fmtCzk(o.valueCzk)}</TableCell>
-                    <TableCell>
-                      <Badge variant={o.mode === "LIVE" ? "destructive" : "secondary"}>
-                        {o.mode}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{o.status}</TableCell>
-                    <TableCell className="num text-xs">{o.sellReason ?? "—"}</TableCell>
-                    <TableCell className="num text-xs text-muted-foreground">
-                      {o.refBuyPriceUsd
-                        ? `${fmtUsd(o.refBuyPriceUsd)} / ${fmtUsd(o.targetPriceUsd ?? 0)} / ${fmtUsd(
-                            o.stopPriceUsd ?? 0,
-                          )}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[22rem] text-xs text-muted-foreground">
-                      {o.note}
-                    </TableCell>
-
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="signals">
-          <Card className="bg-card p-2">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Čas</TableHead>
-                  <TableHead>Signál</TableHead>
-                  <TableHead className="text-right">Cena</TableHead>
-                  <TableHead>Pravidlo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {state.signals.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="num text-xs">{fmtDateTime(s.createdAt)}</TableCell>
-                    <TableCell className="num font-semibold">{ACTION_LABEL[s.action]}</TableCell>
-                    <TableCell className="num text-right">{fmtUsd(s.priceUsd)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{s.reason}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="params">
-          <Card className="bg-card p-2">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Čas</TableHead>
-                  <TableHead>Parametr</TableHead>
-                  <TableHead>Z</TableHead>
-                  <TableHead>Na</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {state.paramChanges.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="num text-xs">{fmtDateTime(c.createdAt)}</TableCell>
-                    <TableCell>{c.field}</TableCell>
-                    <TableCell className="num text-muted-foreground">{c.from}</TableCell>
-                    <TableCell className="num">{c.to}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+import {createFileRoute,Link} from "@tanstack/react-router";
+import {useState,useMemo} from "react";
+import {Card} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {usePilot,usd,czk,dateTime,pct} from "@/lib/pilot-store";
+import {parseTransactions,summarize,sessions,actualTargets} from "@/lib/pilot-engine.mjs";
+import {downloadCsv} from "@/lib/pilot-import";
+export const Route=createFileRoute("/historie")({component:History,head:()=>({meta:[{title:"Historie a import | INTC Pilot 2.0"}]})});
+const n=(v:number)=>v.toLocaleString("cs-CZ",{maximumFractionDigits:4});
+const currency=(v:number,c:string)=>c==="USD"?usd(v):c==="CZK"?czk(v):n(v)+" "+c;
+const color=(v:number)=>v>0?"text-success":v<0?"text-destructive":"";
+function History(){
+ const {paper,settings,transactions,setTransactions,markets}=usePilot();
+ const [error,setError]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(false),[from,setFrom]=useState(""),[to,setTo]=useState(""),[dataset,setDataset]=useState(0),[target,setTarget]=useState(1),[horizon,setHorizon]=useState(5),[show,setShow]=useState(false);
+ const selected=useMemo(()=>transactions.filter(t=>(!from||t.date>=from)&&(!to||t.date<=to)),[transactions,from,to]);
+ const stats=useMemo(()=>summarize(selected),[selected]);
+ const market=markets[dataset]??markets[0];
+ const grouped=useMemo(()=>market?sessions(market.data):null,[market]);
+ const actual=useMemo(()=>market&&grouped&&selected.length&&Number.isFinite(target)&&target>0&&Number.isInteger(horizon)&&horizon>=0&&horizon<=30?actualTargets(selected,grouped.days,market.data.interval,target,horizon):null,[market,grouped,selected,target,horizon]);
+ const coverage=actual?.results.length??0;
+ async function read(file:File){setLoading(true);setError("");setMessage("");try{if(file.size<=0||file.size>30*1024*1024)throw Error("Vyber CSV do 30 MB.");const r=parseTransactions(await file.text());setTransactions(r.transactions);setFrom("");setTo("");setMessage("Načteno "+r.transactions.length+" platných nákupů/prodejů INTC; neplatných INTC řádků "+r.skipped+". Ostatní tituly nejsou zahrnuty.");}catch(e){setError(e instanceof Error?e.message:String(e));}finally{setLoading(false);}}
+ const realized=paper.closed.reduce((s,t)=>s+t.pnlUsd,0);
+ return <div className="mx-auto max-w-7xl space-y-5 px-4 py-6">
+  <div><h1 className="text-2xl font-semibold">Historie a kontrola reálných obchodů</h1><p className="text-sm text-muted-foreground">Reálný export je pouze pro analýzu. Nemění počet akcií, PAPER hotovost ani dlouhodobou pozici.</p></div>
+  <Card className="space-y-4 p-5"><h2 className="font-semibold">Trading 212 · import výpisu CSV</h2><Input type="file" accept=".csv" disabled={loading} onChange={e=>{const f=e.target.files?.[0];if(f)void read(f);e.target.value="";}}/><p className="text-xs text-muted-foreground">Načítají se jen skutečné BUY/SELL záznamy INTC v USD s časem a cenou. Soubor se neposílá na server ani GitHub; po obnovení stránky ho nahraj znovu. Opakovaný import nahrazuje předchozí data, nesčítá je.</p>{loading&&<p>Načítám…</p>}{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}{message&&<p role="status" className="text-sm">{message}</p>}
+  {transactions.length>0&&<><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Od (New York)<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-sm">Do (New York)<Input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Nákupy",String(stats.buys),n(stats.buyQty)+" ks"],["Prodeje",String(stats.sells),n(stats.sellQty)+" ks"],["Objem nákupů",usd(stats.buyUsd),"Bez nákladů"],["Objem prodejů",usd(stats.sellUsd),"Bez nákladů"]].map(([label,value,detail])=><div key={label} className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="num text-xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{detail}</p></div>)}</div>
+    <div className="grid gap-4 sm:grid-cols-2"><div className="rounded-lg border border-border p-3"><h3 className="text-sm font-semibold">Realizovaný Result z výpisu brokera</h3>{Object.entries(stats.result).length?Object.entries(stats.result).map(([c,v])=><p key={c} className={"num text-xl "+color(v)}>{currency(v,c)}</p>):<p className="text-sm text-muted-foreground">Ve vybraných prodejích není Result.</p>}<p className="text-xs text-muted-foreground">Měny se nesčítají. Jde o reportovaný Result, nikoli vlastní výpočet účetní pořizovací ceny ani daňový výsledek.</p></div><div className="rounded-lg border border-border p-3"><h3 className="text-sm font-semibold">Samostatně uvedené FX poplatky</h3>{Object.entries(stats.fees).length?Object.entries(stats.fees).map(([c,v])=><p key={c} className="num text-xl">{currency(v,c)}</p>):<p className="text-sm text-muted-foreground">Žádné zadané FX poplatky.</p>}<p className="text-xs text-muted-foreground">Neodečítám je z Result znovu, protože není ověřeno, zda už jsou zohledněny.</p></div></div>
+    <p className="text-sm text-muted-foreground">Čistý rozdíl počtu akcií v tomto intervalu: {n(stats.buyQty-stats.sellQty)} ks. Nejde o celkový stav účtu, pokud výpis nezačíná nulovou pozicí.</p>
+    <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>downloadCsv("INTC-vybrane-transakce.csv",[["čas UTC","strana","ks","cena USD","result","měna result","FX poplatek","měna FX"],...selected.map(t=>[new Date(t.ts).toISOString(),t.side,t.qty,t.price,t.result,t.resultCurrency,t.fxFee,t.feeCurrency])])}>Export vybraných transakcí</Button><Button variant="outline" onClick={()=>setShow(!show)}>{show?"Skrýt":"Zobrazit"} transakce ({selected.length})</Button><Button variant="ghost" onClick={()=>{setTransactions([]);setMessage("");setError("");setShow(false);}}>Odstranit výpis z paměti</Button></div>
+    {show&&<div className="max-h-96 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-card text-left text-muted-foreground"><tr><th>Čas Praha</th><th>Strana</th><th>Ks</th><th>Cena</th><th>Result</th><th>FX poplatek</th></tr></thead><tbody>{selected.map(t=><tr key={t.id} className="border-t border-border"><td className="py-2">{dateTime(t.ts)}</td><td>{t.side}</td><td>{n(t.qty)}</td><td>{usd(t.price)}</td><td className={t.result===null?"":color(t.result)}>{t.result===null?"—":currency(t.result,t.resultCurrency)}</td><td>{t.fxFee?currency(t.fxFee,t.feeCurrency):"—"}</td></tr>)}</tbody></table></div>}
+  </>}
+  </Card>
+  {transactions.length>0&&<Card className="space-y-3 p-5"><h2 className="font-semibold">Bezprostřední dvojice BUY → SELL</h2><p className="text-sm">{stats.pairs.length} dvojic se stejným počtem akcií; hrubý rozdíl cen {usd(stats.pairGrossUsd)}.</p><p className="text-xs text-muted-foreground">Pouze pomocná detekce sousedních nákupů a prodejů, nikoli FIFO ani potvrzené párování lotů Trading 212. Nezahrnuje náklady, částečná plnění ani ostatní transakce.</p>{stats.pairs.length>0&&<div className="max-h-64 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-card text-left text-muted-foreground"><tr><th>Nákup Praha</th><th>Prodej Praha</th><th>Ks</th><th>Nákup → prodej</th><th>Hrubý rozdíl</th><th>Minuty</th></tr></thead><tbody>{stats.pairs.map((p,i)=><tr key={i} className="border-t border-border"><td className="py-2">{dateTime(p.buy.ts)}</td><td>{dateTime(p.sell.ts)}</td><td>{n(p.buy.qty)}</td><td>{usd(p.buy.price)} → {usd(p.sell.price)}</td><td className={color(p.pnlUsd)}>{usd(p.pnlUsd)}</td><td>{p.holdMinutes.toFixed(0)}</td></tr>)}</tbody></table></div>}</Card>}
+  <Card className="space-y-4 p-5"><h2 className="font-semibold">Ověření cenového cíle po skutečných nákupech</h2><p className="text-sm text-muted-foreground">Porovnání importovaného výpisu s minutovými svíčkami z <Link to="/backtest" className="underline">Backtestu</Link>. Cíl se testuje od následující svíčky; do statistiky zahrnujeme jen nákupy s úplným požadovaným horizontem a cenou uvnitř svíčky (tolerance 0,05 USD).</p>
+   {markets.length>0&&<div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Datová řada<select className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2" value={dataset} onChange={e=>setDataset(Number(e.target.value))}>{markets.map((m,i)=><option key={i} value={i}>{m.name} · {m.data.interval} min</option>)}</select></label><label className="text-sm">Cíl (USD)<Input type="number" min=".01" step=".05" value={target} onChange={e=>setTarget(Number(e.target.value))}/></label><label className="text-sm">Další úplné seance (0 = jen stejný den)<Input type="number" min="0" max="30" step="1" value={horizon} onChange={e=>setHorizon(Number(e.target.value))}/></label></div>}
+   {actual?<><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Vyhodnotitelné nákupy</p><p className="num text-xl font-semibold">{coverage}</p></div><div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Cíl dosažen v horizontu</p><p className="num text-xl font-semibold">{coverage?pct(100*actual.hits/coverage):"—"}</p><p className="text-xs">{actual.hits} z {coverage}</p></div><div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Cíl ve stejný den</p><p className="num text-xl font-semibold">{coverage?pct(100*actual.sameDay/coverage):"—"}</p><p className="text-xs">{actual.sameDay} z {coverage}</p></div></div>
+   <p className="text-xs text-muted-foreground">Mimo seance/datovou řadu: {actual.outside}. Cena neodpovídá svíčce: {actual.unmatched}. Nedostatečný horizont: {actual.censored}. Následující úplné seance mohou přeskočit neúplný den. Dosažení high neprokazuje realizovaný prodej ani zisk; stop, pořadí ticků, poplatky a výše kapitálu nejsou v tomto diagnostickém testu simulovány.</p>
+   <Button variant="outline" disabled={!coverage} onClick={()=>downloadCsv("INTC-skutecne-vstupy-cil.csv",[["nákup UTC","cena USD","ks","dosažení cíle UTC","počet dalších seancí","nejhorší pohyb USD do zásahu / horizontu"],...actual.results.map(x=>[new Date(x.ts).toISOString(),x.price,x.qty,x.hit===null?"":new Date(x.hit).toISOString(),x.firstDay,x.worst])])}>Export testu skutečných vstupů</Button>
+   {coverage>0&&<div className="max-h-72 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-card text-left text-muted-foreground"><tr><th>Nákup Praha</th><th>Vstup</th><th>Ks</th><th>Dosažení cíle</th><th>Nejhorší pohyb*</th></tr></thead><tbody>{actual.results.map(r=><tr key={r.id} className="border-t border-border"><td className="py-2">{dateTime(r.ts)}</td><td>{usd(r.price)}</td><td>{n(r.qty)}</td><td>{r.hit===null?"Nedosažen":dateTime(r.hit)}</td><td>{usd(r.worst)}</td></tr>)}</tbody></table></div>}<p className="text-xs text-muted-foreground">* Do svíčky se zásahem cíle, nebo do konce horizontu; pořadí high/low uvnitř svíčky neznáme.</p></>:<p className="text-sm text-muted-foreground">Nahraj oba soubory nebo zkontroluj parametry.</p>}
+  </Card>
+  <Card className="space-y-4 p-5"><h2 className="font-semibold">PAPER historie — oddělená od brokera</h2><p className="text-sm">Uzavřeno: {paper.closed.length} · čistý P/L <span className={color(realized)}>{usd(realized)} ({czk(realized*settings.fx)} při modelovém kurzu)</span></p><Button variant="outline" disabled={!paper.closed.length&&!paper.positions.length} onClick={()=>downloadCsv("INTC-paper-historie.csv",[["stav","nákup UTC","prodej UTC","ks","nákup USD","prodej USD","cíl USD","stop USD","důvod","čistý P/L USD"],...paper.closed.map(t=>["UZAVŘENÝ",new Date(t.at).toISOString(),new Date(t.exitAt).toISOString(),t.qty,t.price,t.exit,t.target,t.stop,t.reason,t.pnlUsd]),...paper.positions.map(t=>["OTEVŘENÝ",new Date(t.at).toISOString(),"",t.qty,t.price,"",t.target,t.stop,"",""])])}>Export PAPER historie</Button>{paper.closed.length>0&&<div className="max-h-96 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-card text-left text-muted-foreground"><tr><th>Nákup Praha</th><th>Prodej Praha</th><th>Ks</th><th>Cena nákup → prodej</th><th>Důvod</th><th>P/L</th></tr></thead><tbody>{[...paper.closed].reverse().map(t=><tr key={t.id} className="border-t border-border"><td className="py-2">{dateTime(t.at)}</td><td>{dateTime(t.exitAt)}</td><td>{t.qty}</td><td>{usd(t.price)} → {usd(t.exit)}</td><td>{t.reason}</td><td className={color(t.pnlUsd)}>{usd(t.pnlUsd)}</td></tr>)}</tbody></table></div>}</Card>
+ </div>;
 }
