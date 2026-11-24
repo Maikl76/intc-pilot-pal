@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { Toaster } from "@/components/ui/sonner";
-import { StoreProvider } from "@/lib/store";
+import { PilotProvider } from "@/lib/pilot-store";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -129,7 +129,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
+      <PilotProvider>
         <div className="flex min-h-screen flex-col">
           <AppHeader />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
@@ -137,11 +137,11 @@ function RootComponent() {
             <Outlet />
           </main>
           <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground">
-            INTC Trading Pilot — decision-support nástroj. Nejde o investiční doporučení.
+            INTC Trading Pilot 2.0 — PAPER, žádné reálné objednávky. Nejde o investiční doporučení.
           </footer>
         </div>
         <Toaster position="top-right" richColors />
-      </StoreProvider>
+      </PilotProvider>
     </QueryClientProvider>
   );
 }
