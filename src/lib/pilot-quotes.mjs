@@ -57,6 +57,48 @@ export function session(t) {
   if (minute >= calendar.closeMinute && minute < calendar.postEndMinute) return "POST";
   return "CLOSED";
 }
+// Separate overnight venue. Do not relabel a closing print from another feed.
+export function overnightTradingDate(t) {
+  if (!Number.isFinite(t)) return null;
+  const {date,minute}=ny(t);
+  if (minute>=240 && minute<1200) return null;
+  const next=new Date(date+"T12:00:00Z");
+  if(minute>=1200)next.setUTCDate(next.getUTCDate()+1);
+  const cal=marketCalendar(next.getTime());
+  return cal.verified && !cal.closed ? cal.date : null;
+}
+export function marketPhase(t) {
+  return overnightTradingDate(t) ? "OVERNIGHT" : session(t);
+}
+export function parseAlpacaTrade(payload, now, feed) {
+  if (!["boats","overnight"].includes(feed)) return null;
+  const trade=payload?.trades?.INTC;
+  if(typeof trade?.t!=="string" || !/(Z|[+-]\d{2}:\d{2})$/i.test(trade.t))return null;
+  const t=Date.parse(trade.t), date=overnightTradingDate(t);
+  if(!date || !validTime(t,now) || !positive(trade?.p))return null;
+  const source=feed==="boats"?"Alpaca · Blue Ocean ATS":"Alpaca · overnight (zpožděná)";
+  return make(trade.p,t,now,source,null,null,[{timestamp:t,price:trade.p}],{
+    session:"OVERNIGHT",referenceDate:date,chartSource:source,
+    expectedDelayMinutes:feed==="overnight"?15:null,
+    sourceUrl:"https://docs.alpaca.markets/us/docs/245-trading-for-trading-api",
+    message:feed==="overnight"
+      ?"Odvozený noční feed Alpaca; poslední obchod je podle tarifu zpožděný o 15 min a může se lišit od Blue Ocean."
+      :"Poslední obchod Blue Ocean ATS přes Alpaca; nejde o garantovanou cenu brokera.",
+  });
+}
+export function synchronizedQuote(quote, prior=null) {
+  if(!quote || quote.status!=="OK" || !positive(quote.price) || !positive(quote.timestamp))return quote;
+  const previous=prior?.status==="OK" && prior.source===quote.source &&
+    prior.referenceDate===quote.referenceDate ? prior.points??[] : [];
+  const points=new Map();
+  for(const p of [...previous,...(quote.points??[])]) {
+    if(positive(p?.timestamp) && positive(p?.price) && p.timestamp<=quote.timestamp &&
+      (quote.session==="OVERNIGHT" ? overnightTradingDate(p.timestamp)===quote.referenceDate : ny(p.timestamp).date===ny(quote.timestamp).date))
+      points.set(p.timestamp,{timestamp:p.timestamp,price:p.price});
+  }
+  points.set(quote.timestamp,{timestamp:quote.timestamp,price:quote.price});
+  return {...quote,points:[...points.values()].sort((a,b)=>a.timestamp-b.timestamp).slice(-1500),chartSource:quote.source};
+}
 function parseSchedule(periods) {
   const pre = periods?.pre,
     regular = periods?.regular,
@@ -234,18 +276,19 @@ export function selectQuote(quotes, now) {
   const valid = quotes
     .filter((q) => q?.status === "OK" && positive(q.price) && validTime(q.timestamp, now))
     .sort((a, b) => b.timestamp - a.timestamp);
-  const latest = valid[0];
+  const nightDate=overnightTradingDate(now);
+  const latest=(nightDate ? valid.find(q=>q.session==="OVERNIGHT" && q.referenceDate===nightDate) : null) ?? valid[0];
   if (!latest) return null;
-  const chart = valid.find((q) => q.points?.length && q.referenceDate === latest.referenceDate);
+  const chart = latest.session==="OVERNIGHT" ? null : valid.find((q) => q.points?.length && q.referenceDate === latest.referenceDate);
   const peer = valid.find(
-    (q) => q.source !== latest.source && Math.abs(q.timestamp - latest.timestamp) <= 120000,
+    (q) => q.source !== latest.source && q.session===latest.session && Math.abs(q.timestamp - latest.timestamp) <= 120000,
   );
   const disagreementPct = peer ? (Math.abs(peer.price - latest.price) / latest.price) * 100 : null;
   const conflict = disagreementPct !== null && disagreementPct > 1;
-  return {
+  return synchronizedQuote({
     ...latest,
-    points: chart?.points ?? latest.points ?? [],
-    chartSource: chart?.source ?? latest.chartSource ?? null,
+    points: latest.points ?? [],
+    chartSource: latest.source,
     open: latest.open ?? chart?.open ?? null,
     previousClose: latest.previousClose ?? chart?.previousClose ?? null,
     schedule: latest.schedule ?? chart?.schedule ?? null,
@@ -257,7 +300,7 @@ export function selectQuote(quotes, now) {
             "Poskytovatelé uvádějí ceny odlišné o více než 1 %. Cvičné obchody z těchto dat jsou pozastavené; ověř kotaci u brokera.",
         }
       : {}),
-  };
+  });
 }
 export function ageMinutes(q, now) {
   return q?.status === "OK" && validTime(q.timestamp, now)
@@ -270,10 +313,14 @@ export function isUsable(q, now) {
     age === null ||
     age > 20 ||
     !positive(q.price) ||
-    q.conflict ||
-    ny(q.timestamp).date !== ny(now).date
+    q.conflict
   )
     return false;
+  if(q.session==="OVERNIGHT") {
+    const date=overnightTradingDate(now);
+    return date!==null && overnightTradingDate(q.timestamp)===date && q.referenceDate===date;
+  }
+  if(ny(q.timestamp).date !== ny(now).date)return false;
   const current = observationSession(now, q.schedule);
   // A premarket or closing observation must not masquerade as a new session price.
   return current !== "CLOSED" && q.session === current;

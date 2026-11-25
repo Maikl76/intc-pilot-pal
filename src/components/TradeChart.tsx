@@ -83,20 +83,23 @@ export function TradeChart({
   reference,
   source,
   date,
+  synchronized=false,
 }: {
   points: ChartPoint[];
   reference?: number | null;
   source: string;
   date?: string | undefined;
+  synchronized?: boolean;
 }) {
   const [advanced, setAdvanced] = useState(false);
+  const latest=points.at(-1);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-medium">Průběh ceny</h3>
+          <h3 className="font-medium">{advanced?"Nezávislý graf TradingView":synchronized?"Synchronizovaný průběh ceny":"Historický průběh ceny"}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {date ?? "Čekám na tržní data"} · čas Praha · {source}
+            {advanced?"Nezávislý zdroj; není cenou pro cvičné obchody":(date ?? "Čekám na tržní data")+" · čas Praha · "+source}
           </p>
         </div>
         <div className="flex rounded-lg border border-border p-1">
@@ -107,7 +110,7 @@ export function TradeChart({
             aria-pressed={!advanced}
           >
             <LineIcon className="size-4" />
-            Cena
+            Stejná cena
           </Button>
           <Button
             size="sm"
@@ -116,10 +119,11 @@ export function TradeChart({
             aria-pressed={advanced}
           >
             <ChartCandlestick className="size-4" />
-            Pokročilý graf
+            TradingView
           </Button>
         </div>
       </div>
+      {!advanced && latest ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"><span>{synchronized?"Shodná poslední cena grafu a obchodního panelu":"Poslední cena importované historie"}</span><strong className="num">{latest.price.toFixed(2)} USD · {time(latest.timestamp)}</strong></div>:null}
       {advanced ? (
         <AdvancedChart />
       ) : points.length > 1 ? (
@@ -184,10 +188,9 @@ export function TradeChart({
       ) : (
         <div className="flex h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background/30 px-6 text-center">
           <ChartCandlestick className="mb-4 size-9 text-muted-foreground" />
-          <p className="font-medium">Pro graf zatím nejsou dostupné svíčky</p>
+          <p className="font-medium">{latest?"Čekám na další pozorování stejného zdroje":"Pro graf zatím nejsou dostupné svíčky"}</p>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            Můžeš otevřít pokročilý graf nebo načíst historická data v Backtestu. Cenu nedoplňujeme
-            odhadem.
+            {latest?"Poslední pozorování je zobrazené nad grafem. Další skutečné ceny se přidají při obnově zdroje.":"Můžeš otevřít nezávislý graf TradingView nebo načíst historická data v Backtestu. Cenu nedoplňujeme odhadem."}
           </p>
           <a
             href="https://www.nasdaq.com/market-activity/stocks/intc"

@@ -1,4 +1,4 @@
-export type Session = "PRE" | "REGULAR" | "POST" | "CLOSED";
+export type Session = "PRE" | "REGULAR" | "POST" | "OVERNIGHT" | "CLOSED";
 export interface Point {
   timestamp: number;
   price: number;
@@ -58,6 +58,10 @@ export function marketCalendar(t: number): {
   sourceUrl: string;
 };
 export function session(t: number): Session;
+export function overnightTradingDate(t: number): string | null;
+export function marketPhase(t: number): Session;
+export function parseAlpacaTrade(payload: unknown, now: number, feed: string): PilotQuote | null;
+export function synchronizedQuote(quote: PilotQuote, prior?: PilotQuote | null): PilotQuote;
 export function parseYahoo(payload: unknown, now: number): PilotQuote | null;
 export function parseFinnhub(payload: unknown, now: number): PilotQuote | null;
 export function selectQuote(quotes: (PilotQuote | null)[], now: number): PilotQuote | null;

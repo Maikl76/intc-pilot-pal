@@ -37,7 +37,7 @@ import {
   type PaperMode,
 } from "@/lib/pilot-store";
 import { ny, sessions } from "@/lib/pilot-engine.mjs";
-import { ageMinutes, session, marketCalendar } from "@/lib/pilot-quotes.mjs";
+import { ageMinutes, marketPhase, marketCalendar } from "@/lib/pilot-quotes.mjs";
 import { paperSummary } from "@/lib/pilot-paper.mjs";
 
 export const Route = createFileRoute("/")({
@@ -48,6 +48,7 @@ const sessionLabel = {
   PRE: "Před otevřením",
   REGULAR: "Hlavní seance",
   POST: "Po uzavření",
+  OVERNIGHT: "Noční obchodování · ATS",
   CLOSED: "Trh je zavřený",
 };
 const signalLabel: Record<string, string> = {
@@ -129,6 +130,9 @@ function Dashboard() {
       : null;
   const changePct = change != null && previousClose ? (change / previousClose) * 100 : null;
   const calendar = marketCalendar(now);
+  const phase=marketPhase(now);
+  const missingNight=phase==="OVERNIGHT" && quote?.session!=="OVERNIGHT";
+  const staleQuote=age!==null && (age>20 || quote?.session!==phase);
   const lastSession = useMemo(() => {
     const market = markets[0];
     return market ? sessions(market.data).days.at(-1) : undefined;
@@ -138,7 +142,7 @@ function Dashboard() {
     chartPoints = providerPoints.length ? providerPoints : importedPoints;
   const chartDate = chartPoints.length
     ? new Date(chartPoints[0]!.timestamp).toLocaleDateString("cs-CZ", {
-        timeZone: "America/New_York",
+        timeZone: "Europe/Prague",
       })
     : undefined;
   const selected = paper.positions.find((x) => x.id === sellingId),
@@ -214,7 +218,7 @@ function Dashboard() {
             </div>
             <Badge variant="outline" className="gap-2 py-1.5">
               <Clock3 className="size-3.5" />
-              {hydrated ? sessionLabel[session(now)] : "Načítám seanci"}
+              {hydrated ? sessionLabel[phase] : "Načítám seanci"}
             </Badge>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -240,7 +244,7 @@ function Dashboard() {
                 </p>
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {quoteLoading ? "Připojuji zdroj cen…" : "Tržní cena není dostupná."}
+                  {marketPrice!=null ? "Změna proti předchozímu závěru není ověřená." : quoteLoading ? "Připojuji zdroj cen…" : "Tržní cena není dostupná."}
                 </p>
               )}
             </div>
@@ -271,7 +275,10 @@ function Dashboard() {
                   : "Stáří " + Math.floor(age) + " min"}
             </Badge>
             {quote?.cached ? <span className="text-warning">Uchovaná starší odpověď</span> : null}
+            {staleQuote ? <span className="text-warning font-medium">Poslední dostupná cena · nikoli aktuální seance</span> : null}
+            {quote?.expectedDelayMinutes!=null?<span className="text-warning">Zpoždění zdroje cca {quote.expectedDelayMinutes} min</span>:null}
           </div>
+          {missingNight?<div role="status" className="rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm">Probíhá noční obchodování (Blue Ocean ATS). Zobrazená cena není z této seance. TradingView může mít novější data; pro synchronizovanou noční kotaci připoj Alpaca v serverovém nastavení. Do té doby lze použít oddělený Vlastní scénář.</div>:null}
           <TradeChart
             points={chartPoints}
             reference={providerPoints.length ? (quote?.open ?? null) : null}
@@ -281,6 +288,7 @@ function Dashboard() {
                 : "importovaná historie"
             }
             date={chartDate}
+            synchronized={providerPoints.length>0}
           />
           <div className="grid grid-cols-2 gap-4 border-t border-border pt-5 sm:grid-cols-4">
             {[

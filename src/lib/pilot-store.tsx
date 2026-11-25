@@ -252,7 +252,7 @@ function plan(state: Persist, quote: PilotQuote | undefined, now: number) {
     manualReasons.unshift(
       state.mode === "scenario"
         ? "Zadej kladnou fiktivní cenu vlastního scénáře."
-        : "Pro tržní cvičení je nutná kotace stejného dne, nejvýše 20 minut stará, během obchodní seance.",
+        : "Pro tržní cvičení je nutná kotace z právě probíhající seance, nejvýše 20 minut stará.",
     );
   return {
     fresh,
@@ -316,7 +316,7 @@ export function PilotProvider({ children }: { children: ReactNode }) {
     corruptRawRef = useRef<string | null>(null);
   const actionRef = useRef({ key: "", at: 0 });
   const query = useQuery({
-    queryKey: ["pilot-quote-v3"],
+    queryKey: ["pilot-quote-v4"],
     queryFn: () => getPilotQuote(),
     refetchInterval: 15000,
     refetchIntervalInBackground: false,
@@ -548,7 +548,7 @@ export function PilotProvider({ children }: { children: ReactNode }) {
     persistenceWarning,
     quote,
     executionQuote,
-    quoteLoading: query.isLoading,
+    quoteLoading: query.isFetching,
     now,
     entry,
     markets,

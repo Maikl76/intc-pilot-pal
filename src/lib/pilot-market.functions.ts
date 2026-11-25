@@ -3,6 +3,9 @@ import {
   parseYahoo,
   parseFinnhub,
   selectQuote,
+  synchronizedQuote,
+  overnightTradingDate,
+  parseAlpacaTrade,
   type PilotQuote,
   type QuoteDiagnostic,
 } from "./pilot-quotes.mjs";
@@ -17,6 +20,7 @@ let pending: Promise<PilotQuote> | null = null;
 
 async function json(url: string, headers: Record<string, string> = {}): Promise<unknown> {
   const response = await fetch(url, {
+    cache: "no-store",
     headers: { Accept: "application/json", ...headers },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -104,7 +108,31 @@ async function loadQuote(): Promise<PilotQuote> {
       return null;
     }
   };
-  const candidates = await Promise.all([yahoo(), finnhub()]);
+  const overnight = async (): Promise<PilotQuote | null> => {
+    if(!overnightTradingDate(Date.now())) return null;
+    const key=typeof process!=="undefined" ? process.env["APCA_API_KEY_ID"] : undefined;
+    const secret=typeof process!=="undefined" ? process.env["APCA_API_SECRET_KEY"] : undefined;
+    const feed=typeof process!=="undefined" && process.env["ALPACA_OVERNIGHT_FEED"]==="boats" ? "boats" : "overnight";
+    const source="Alpaca · "+feed;
+    const start=Date.now();
+    if(!key || !secret) {
+      diagnostics.push({source,status:"NOT_CONFIGURED",checkedAt:start,message:"Pro noční cenu připoj serverové klíče APCA_API_KEY_ID a APCA_API_SECRET_KEY. Yahoo/Finnhub nenahrazují noční obchod."});
+      return null;
+    }
+    try {
+      const raw=await json("https://data.alpaca.markets/v2/stocks/trades/latest?symbols=INTC&feed="+feed,{
+        "APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,
+      });
+      const result=parseAlpacaTrade(raw,Date.now(),feed);
+      if(!result || result.timestamp===null) throw Error("Invalid quote");
+      diagnostics.push({source,status:"OK",checkedAt:Date.now(),latencyMs:Date.now()-start,timestamp:result.timestamp,message:feed==="overnight"?"Poslední obchod; tarif uvádí 15min zpoždění.":"Poslední obchod Blue Ocean ATS."});
+      return result;
+    }catch(error){
+      diagnostics.push({source,status:"ERROR",checkedAt:Date.now(),latencyMs:Date.now()-start,message:safeError(error)});
+      return null;
+    }
+  };
+  const candidates = await Promise.all([yahoo(), finnhub(), overnight()]);
   const checkedAt = Date.now();
   const best = selectQuote(candidates, checkedAt);
   if (
@@ -112,7 +140,7 @@ async function loadQuote(): Promise<PilotQuote> {
     best.timestamp !== null &&
     (!lastGood || lastGood.timestamp === null || best.timestamp >= lastGood.timestamp)
   ) {
-    lastGood = { ...best, diagnostics, checkedAt, cached: false };
+    lastGood = { ...synchronizedQuote(best,lastGood), diagnostics, checkedAt, cached: false };
     return lastGood;
   }
   if (lastGood)
@@ -134,7 +162,7 @@ async function loadQuote(): Promise<PilotQuote> {
     timestamp: null,
     receivedAt: checkedAt,
     checkedAt,
-    source: "Yahoo Finance / Finnhub",
+    source: "Yahoo Finance / Finnhub / Alpaca",
     session: "CLOSED",
     points: [],
     diagnostics,

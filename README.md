@@ -86,3 +86,6 @@ bun run dev
 ```
 
 Testy pokrývají účetní identity, dílčí prodeje, náklady a rezervu, oddělení scénářů, migraci, čas kotace, předchozí závěr, spory zdrojů, seance, XML a odkazy zpráv a historické statistiky. Produkční sestavení generuje klienta i Cloudflare Worker server. Zachovej publikovanou historii Git; nepoužívej force push.
+
+## Synchronizované ceny a noční seance
+Vlastní graf, cena v záhlaví a tržní simulátor vycházejí z jedné vybrané kotace. Graf nemíchá ceny různých poskytovatelů; pokud zdroj nemá historii, začíná jediným skutečným pozorováním a postupně přidává další. Nezávislý vložený TradingView může používat jiný feed; neposkytuje API pro převzetí ceny. V noci (20:00–04:00 ET před obchodním dnem) může volitelně server číst Alpaca latest trades. Nastav APCA_API_KEY_ID a APCA_API_SECRET_KEY pouze jako serverové secrets. Výchozí feed overnight je odvozený a poslední obchod má podle dokumentace zpoždění 15 min. Nastavení ALPACA_OVERNIGHT_FEED=boats vyžaduje příslušný tarif a oprávnění. Ověř licenci pro publikování dat před zapnutím feedu na veřejné aplikaci. Bez klíčů se žádná noční cena nedopočítává; starší kotace je označená a nelze ji použít pro tržní cvičení mimo její seanci. Přísná strategie nadále platí jen v hlavní seanci. Kalendář nočního trhu je omezen na ověřený rok 2026. Oba cvičné účty i jejich historie zůstávají beze změny.

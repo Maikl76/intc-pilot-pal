@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {parseYahoo,parseFinnhub,selectQuote,isUsable,isRegularFresh,session,marketCalendar} from "../src/lib/pilot-quotes.mjs";
+import {parseYahoo,parseFinnhub,selectQuote,isUsable,isRegularFresh,session,marketCalendar,overnightTradingDate,marketPhase,parseAlpacaTrade,synchronizedQuote} from "../src/lib/pilot-quotes.mjs";
 const now=Date.parse("2026-11-24T14:02:00Z"),ts=Date.parse("2026-11-24T14:01:00Z")/1000;
 const payload={chart:{result:[{meta:{symbol:"INTC",currency:"USD",regularMarketTime:Date.parse("2026-11-23T21:00:00Z")/1000,regularMarketPrice:59.66,chartPreviousClose:59.66},timestamp:[ts-60,ts],indicators:{quote:[{close:[58,58.12],open:[57.9,58]}]}}]}};
 test("uses latest premarket minute, not prior regular close",()=>{const q=parseYahoo(payload,now);assert.equal(q.price,58.12);assert.equal(q.open,null);assert.equal(q.session,"PRE");assert.ok(isUsable(q,now));assert.ok(!isRegularFresh(q,now))});
@@ -63,7 +63,7 @@ test("different-day references are not borrowed from another provider", () => {
   const q = selectQuote([current, previous], now);
   assert.equal(q.open, null);
   assert.equal(q.previousClose, null);
-  assert.deepEqual(q.points, []);
+  assert.deepEqual(q.points, [{timestamp:current.timestamp,price:current.price}]);
 });
 test("normal daylight saving session boundaries use New York time", () => {
   assert.equal(session(Date.parse("2026-10-30T13:30:00Z")), "REGULAR");
@@ -107,4 +107,36 @@ test("generic provider periods cannot override a published early close", () => {
   assert.equal(q.schedule.postEnd, Date.parse("2026-11-27T22:00:00Z"));
   assert.equal(q.session, "POST");
   assert.ok(!isRegularFresh(q, now));
+});
+
+
+test("selected feed price exactly matches final chart point; no mixed venue line",()=>{
+  const f=parseFinnhub({c:58.45,t:ts+10},now), y=parseYahoo(payload,now);
+  const r=selectQuote([y,f],now);
+  assert.equal(r.source,"Finnhub");assert.equal(r.chartSource,"Finnhub");
+  assert.deepEqual(r.points,[{timestamp:f.timestamp,price:58.45}]);
+  const merged=synchronizedQuote(r,{...f,timestamp:f.timestamp-1000,points:[{timestamp:f.timestamp-1000,price:58.41}]});
+  assert.deepEqual(merged.points.map(x=>x.price),[58.41,58.45]);
+  assert.equal(merged.points.at(-1).timestamp,r.timestamp);
+});
+test("overnight trade crosses midnight and never counts for strict regular strategy",()=>{
+  const n=Date.parse("2026-11-25T05:54:00Z");
+  const x=parseAlpacaTrade({trades:{INTC:{t:"2026-11-25T05:39:00Z",p:53.12}}},n,"overnight");
+  assert.equal(marketPhase(n),"OVERNIGHT");assert.equal(x.referenceDate,"2026-11-25");
+  assert.equal(x.expectedDelayMinutes,15);assert.equal(x.points.at(-1).price,x.price);
+  assert.ok(isUsable(x,n));assert.ok(!isRegularFresh(x,n));assert.ok(!isUsable(x,n+6*60000));
+  const cross=Date.parse("2026-11-25T05:05:00Z");
+  const before=parseAlpacaTrade({trades:{INTC:{t:"2026-11-25T04:58:00Z",p:53}}},cross,"boats");
+  assert.ok(isUsable(before,cross));assert.ok(!isUsable(before,Date.parse("2026-11-25T09:01:00Z")));
+  const regular=parseFinnhub({c:53,t:Date.parse("2026-11-24T21:00:00Z")/1000},n);
+  assert.equal(selectQuote([regular,x],n).price,53.12);
+});
+test("no overnight Friday or preceding holiday; reject malformed timestamps and regular prints",()=>{
+  assert.equal(overnightTradingDate(Date.parse("2026-11-28T02:00:00Z")),null);
+  assert.equal(overnightTradingDate(Date.parse("2026-11-26T02:00:00Z")),null);
+  assert.equal(overnightTradingDate(Date.parse("2026-11-30T02:00:00Z")),"2026-11-30");
+  const n=Date.parse("2026-11-25T05:54:00Z");
+  assert.equal(parseAlpacaTrade({trades:{INTC:{t:"2026-11-24T21:00:00Z",p:53}}},n,"boats"),null);
+  assert.equal(parseAlpacaTrade({trades:{INTC:{t:"2026-11-25T05:39:00",p:53}}},n,"boats"),null);
+  assert.equal(parseAlpacaTrade({trades:{INTC:{t:"2026-11-25T05:39:00Z",p:0}}},n,"boats"),null);
 });

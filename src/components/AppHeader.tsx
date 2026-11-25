@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Activity, ShieldCheck } from "lucide-react";
-import { usePilot, usd } from "@/lib/pilot-store";
+import { usePilot, usd, dateTime } from "@/lib/pilot-store";
+import { ageMinutes, marketPhase } from "@/lib/pilot-quotes.mjs";
 const NAV = [
   { to: "/", label: "Obchodní přehled" },
   { to: "/zpravy", label: "Zprávy a důkazy" },
@@ -10,7 +11,9 @@ const NAV = [
   { to: "/nastaveni", label: "Nastavení" },
 ] as const;
 export function AppHeader() {
-  const { quote } = usePilot();
+  const { quote,now } = usePilot();
+  const age=ageMinutes(quote,now);
+  const stale=age!==null && (age>20 || quote?.session!==marketPhase(now));
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -33,10 +36,11 @@ export function AppHeader() {
         </Link>
         <div className="flex items-center gap-3 sm:gap-5">
           <div className="hidden text-right sm:block">
-            <span className="text-xs text-muted-foreground">NASDAQ · INTC</span>
+            <span className="text-xs text-muted-foreground">{stale?"INTC · poslední dostupná":"NASDAQ · INTC"}</span>
             <div className="num text-sm font-medium">
               {quote?.status === "OK" && quote.price != null ? usd(quote.price) : "Čekám na data"}
             </div>
+            {quote?.timestamp!=null?<span className="text-[10px] text-muted-foreground">{dateTime(quote.timestamp)}</span>:null}
           </div>
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
             <ShieldCheck className="size-4" />

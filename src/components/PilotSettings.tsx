@@ -327,7 +327,7 @@ export function PilotSettings() {
         <details className="text-sm text-muted-foreground">
           <summary className="cursor-pointer">Provozní připojení zdrojů</summary>
           <p className="mt-3">
-            Finnhub lze připojit serverovou proměnnou MARKET_DATA_API_KEY. Klíče patří do chráněného
+            Finnhub lze připojit serverovou proměnnou MARKET_DATA_API_KEY. Pro noční obchodování 20:00–04:00 ET je připraven volitelný Alpaca feed: APCA_API_KEY_ID a APCA_API_SECRET_KEY; výchozí overnight nabízí zpožděný poslední obchod, ALPACA_OVERNIGHT_FEED=boats vyžaduje odpovídající tarif a oprávnění k použití dat. Vložený TradingView má samostatný zdroj a cenu z něj aplikace nepřebírá. Klíče patří do chráněného
             nastavení hostingu; nikdy do veřejného kódu, URL nebo lokálních záloh.
           </p>
         </details>
