@@ -6,12 +6,25 @@ const positive = (x) => typeof x === "number" && Number.isFinite(x) && x > 0;
 // Zaokrouhlení na 0,0001 USD zmenší přenos a nemění pořadí cen (zachová high ≥ open/close ≥ low).
 const round4 = (x) => Math.round(x * 10000) / 10000;
 
-function chartOf(payload) {
+// Symboly, které server smí číst (Intel a srovnávací polovodičové/technologické tituly).
+export const HISTORY_SYMBOLS = Object.freeze([
+  "INTC",
+  "SOXX",
+  "QQQ",
+  "NVDA",
+  "AMD",
+  "TSM",
+  "MU",
+  "AVGO",
+]);
+
+function chartOf(payload, symbol = "INTC") {
+  if (!HISTORY_SYMBOLS.includes(symbol)) throw new Error("Nepodporovaný symbol.");
   const chart = payload?.chart?.result?.[0],
     meta = chart?.meta,
     quote = chart?.indicators?.quote?.[0];
   if (
-    meta?.symbol !== "INTC" ||
+    meta?.symbol !== symbol ||
     meta?.currency !== "USD" ||
     !quote ||
     !Array.isArray(chart.timestamp)
@@ -27,8 +40,8 @@ function chartOf(payload) {
  * Dnešní (neukončený) den se vynechává i po uzavření trhu, stejně jako v Kontextu pohybu.
  * Řádky s neúplným nebo nekonzistentním OHLC se vynechají.
  */
-export function parseDailyHistory(payload, now = Date.now()) {
-  const { chart, quote } = chartOf(payload);
+export function parseDailyHistory(payload, now = Date.now(), symbol = "INTC") {
+  const { chart, quote } = chartOf(payload, symbol);
   const adj = chart.indicators?.adjclose?.[0]?.adjclose;
   const adjusted = Array.isArray(adj) && adj.length === chart.timestamp.length;
   const today = ny(now).date,
@@ -61,6 +74,7 @@ export function parseDailyHistory(payload, now = Date.now()) {
   const rows = [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   if (rows.length < 300) throw new Error("Méně než 300 denních záznamů; na prognózu to nestačí.");
   return {
+    symbol,
     adjusted,
     dates: rows.map((row) => row.date),
     closes: rows.map((row) => row.close),
@@ -121,4 +135,17 @@ export function parseIntradayHistory(payload, now = Date.now()) {
   bars.sort((a, b) => a.ts - b.ts);
   if (bars.length < 2) throw new Error("Zdroj nevrátil použitelné svíčky.");
   return { bars, interval, rejected };
+}
+
+/**
+ * Poslední cena z hlaviček Yahoo chart API (regularMarketPrice) a předchozí závěr
+ * (chartPreviousClose u rozsahu 1 den). Vrací null, pokud chybí nebo je čas v budoucnosti.
+ */
+export function parseLiveMeta(payload, symbol, now = Date.now()) {
+  const { meta } = chartOf(payload, symbol);
+  const price = meta.regularMarketPrice,
+    previousClose = meta.chartPreviousClose ?? meta.previousClose,
+    time = Number(meta.regularMarketTime) * 1000;
+  if (![price, previousClose, time].every(positive) || time > now + 60000) return null;
+  return { symbol, price, previousClose, time, date: ny(time).date };
 }

@@ -1,13 +1,25 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Crosshair, Landmark, ListChecks, Radar, Ruler } from "lucide-react";
+import { Cpu, Crosshair, Landmark, ListChecks, Radar, Ruler } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Figure, Note, Section } from "@/components/InfoBlocks";
 import { usePilot, usd, czk, pct } from "@/lib/pilot-store";
-import { getIntelHistory, getIntelHourly } from "@/lib/pilot-history.functions";
+import { getIntelHistory, getIntelHourly, getSectorData } from "@/lib/pilot-history.functions";
+import type { DailyHistory } from "@/lib/pilot-history.mjs";
+import type { PilotQuote } from "@/lib/pilot-market.functions";
+import {
+  alignedReturns,
+  classifyMove,
+  correlationTable,
+  decomposeMove,
+  sectorDipStudy,
+  trailingBeta,
+  type DipGroup,
+  type MoveKind,
+} from "@/lib/pilot-sector.mjs";
 import {
   averageTrueRange,
   averagingDown,
@@ -85,6 +97,11 @@ const SOURCES = {
   cohen: {
     label: "Cohen, Malloy, Pomorski (2012), Decoding Inside Information",
     url: "https://www.nber.org/papers/w16454",
+  },
+  chan: {
+    label:
+      "Chan (2003), Stock Price Reaction to News and No-News: Drift and Reversal After Headlines",
+    url: "https://econpapers.repec.org/RePEc:eee:jfinec:v:70:y:2003:i:2:p:223-260",
   },
 } as const;
 type SourceKey = keyof typeof SOURCES;
@@ -815,6 +832,8 @@ export function EdgeWorkbench() {
         ))}
       </Section>
 
+      <SectorPanel daily={daily} quote={quote} />
+
       <Section
         icon={<ListChecks className="size-5 text-primary" />}
         eyebrow="PROVEDENÍ OBCHODU"
@@ -884,5 +903,282 @@ export function EdgeWorkbench() {
         </ul>
       </Card>
     </div>
+  );
+}
+
+const SECTOR_NAMES: Record<string, string> = {
+  SOXX: "Polovodičový fond SOXX",
+  QQQ: "Technologický fond QQQ",
+  NVDA: "Nvidia",
+  AMD: "AMD",
+  TSM: "TSMC",
+  MU: "Micron",
+  AVGO: "Broadcom",
+};
+const MOVE_TEXT: Record<MoveKind, [string, "good" | "warn" | "info"]> = {
+  SECTOR: ["Pokles hlavně se sektorem", "good"],
+  OWN: ["Vlastní pokles Intelu – pravděpodobně zpráva o firmě", "warn"],
+  MIXED: ["Smíšený pokles (sektor i vlastní příčina)", "info"],
+  NO_DROP: ["Bez velkého poklesu (méně než 3 %)", "info"],
+};
+const coefficient = (value: number | null) =>
+  value == null
+    ? "—"
+    : (Math.abs(value) < 0.005 ? 0 : value).toLocaleString("cs-CZ", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+function groupText(group: DipGroup, baselinePct: number) {
+  return (
+    <>
+      <p>
+        Na historii INTC {group.n}× (události se nepřekrývají). Za dalších 5 dní průměrně{" "}
+        <strong className="text-foreground">{signedPct(group.meanPct)}</strong> (95% interval{" "}
+        {signedPct(group.lowPct)} až {signedPct(group.highPct)}), běžný týden{" "}
+        {signedPct(baselinePct)}.
+      </p>
+      <p>
+        Rozdíl proti běžnému týdnu {signedPct(group.excessPct)}, 95% interval{" "}
+        {signedPct(group.excessLowPct)} až {signedPct(group.excessHighPct)}.
+      </p>
+    </>
+  );
+}
+
+/** Intel a polovodičový sektor: rozklad pohybu, poklesy podle příčiny a korelace. */
+function SectorPanel({
+  daily,
+  quote,
+}: {
+  daily: DailyHistory | null;
+  quote: PilotQuote | undefined;
+}) {
+  const sectorQuery = useQuery({
+    queryKey: ["intel-sector-v1"],
+    queryFn: () => getSectorData(),
+    staleTime: 120000,
+    refetchInterval: 300000,
+    retry: 1,
+  });
+  const series = sectorQuery.data?.series ?? null;
+  const liveIntc = sectorQuery.data?.live.INTC ?? null,
+    liveSoxx = sectorQuery.data?.live.SOXX ?? null;
+  const model = useMemo(() => {
+    const soxx = series?.find((x) => x.symbol === "SOXX");
+    if (!daily || !series || !soxx) return null;
+    try {
+      const aligned = alignedReturns(daily, soxx);
+      const lastIndex = aligned.a.length - 1;
+      const fit = trailingBeta(aligned);
+      const lastFit = trailingBeta(aligned, { end: lastIndex });
+      const lastIntc = (Math.exp(aligned.a[lastIndex] ?? 0) - 1) * 100,
+        lastSoxx = (Math.exp(aligned.b[lastIndex] ?? 0) - 1) * 100;
+      return {
+        ok: true as const,
+        fit,
+        last: lastFit
+          ? {
+              date: aligned.dates[lastIndex] ?? "",
+              intcPct: lastIntc,
+              soxxPct: lastSoxx,
+              ...decomposeMove({ intcPct: lastIntc, sectorPct: lastSoxx, beta: lastFit.beta }),
+            }
+          : null,
+        study: sectorDipStudy(aligned),
+        table: correlationTable(daily, series).sort((a, b) => (b.recent ?? -1) - (a.recent ?? -1)),
+      };
+    } catch (error) {
+      return { ok: false as const, error: messageOf(error) };
+    }
+  }, [daily, series]);
+
+  // Dnešní pohyb: cena hlavní seance INTC i SOXX ze stejného zdroje a dne, novější než
+  // poslední celá seance v historii (v průběhu seance průběžně, po závěru konečně).
+  const today =
+    model?.ok &&
+    model.fit &&
+    model.last &&
+    liveIntc &&
+    liveSoxx &&
+    liveIntc.date === liveSoxx.date &&
+    liveIntc.date > model.last.date
+      ? (() => {
+          const intcPct = (liveIntc.price / liveIntc.previousClose - 1) * 100,
+            soxxPct = (liveSoxx.price / liveSoxx.previousClose - 1) * 100;
+          return {
+            date: liveIntc.date,
+            intcPct,
+            soxxPct,
+            ...decomposeMove({ intcPct, sectorPct: soxxPct, beta: model.fit?.beta ?? 1 }),
+          };
+        })()
+      : null;
+  const running = quote?.session === "REGULAR";
+  const shown = today ?? (model?.ok ? model.last : null);
+  const kind = shown
+    ? classifyMove({ intcPct: shown.intcPct, ownPartPct: shown.ownPartPct })
+    : null;
+
+  return (
+    <Section
+      icon={<Cpu className="size-5 text-primary" />}
+      eyebrow="SEKTOR A INTEL"
+      title="Hýbe se Intel kvůli sektoru, nebo kvůli sobě?"
+      intro="Intel se pohybuje hlavně s polovodiči, ale současně s nimi; sledovat Nvidii a pak koupit Intel nefunguje. Užitečné je rozlišit, proč Intel padá: s celým sektorem, nebo kvůli zprávě o sobě. Pohyb se rozkládá na část sektoru (beta × pohyb fondu SOXX) a vlastní část Intelu."
+    >
+      {sectorQuery.isError ? (
+        <p role="alert" className="text-sm text-destructive">
+          Data sektoru se nepodařilo načíst.
+        </p>
+      ) : null}
+      {model && !model.ok ? (
+        <p role="alert" className="text-sm text-destructive">
+          {model.error}
+        </p>
+      ) : null}
+      {!model ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Načítám data sektoru…
+        </p>
+      ) : null}
+      {model?.ok ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Figure
+              label="Citlivost na sektor (beta, poslední rok)"
+              value={model.fit ? number(model.fit.beta) : "—"}
+              detail={
+                model.fit
+                  ? "Když fond SOXX stoupne o 1 %, Intel v průměru o " +
+                    number(model.fit.beta) +
+                    " %. Sektor vysvětluje " +
+                    share(model.fit.r2) +
+                    " denních pohybů Intelu."
+                  : "Málo dat."
+              }
+            />
+            {shown ? (
+              <Figure
+                label={
+                  today
+                    ? (running ? "Dnes zatím (" : "Dnes, závěr hlavní seance (") + today.date + ")"
+                    : "Poslední seance (" + shown.date + ")"
+                }
+                value={signedPct(shown.intcPct)}
+                color={
+                  shown.intcPct < 0 ? "text-destructive" : shown.intcPct > 0 ? "text-success" : ""
+                }
+                detail={
+                  "SOXX " +
+                  signedPct(shown.soxxPct) +
+                  " → část od sektoru " +
+                  signedPct(shown.sectorPartPct) +
+                  ", vlastní pohyb Intelu " +
+                  signedPct(shown.ownPartPct) +
+                  "."
+                }
+              />
+            ) : null}
+            {kind ? (
+              <Note kind={MOVE_TEXT[kind][1]} title={MOVE_TEXT[kind][0]}>
+                <p>
+                  {kind === "OWN"
+                    ? "Po vlastních poklesech Intel v historii v průměru dál neodrážel. Přikupovat podle pravidel jen s plánem a stopem."
+                    : kind === "SECTOR"
+                      ? "Po poklesech spolu se sektorem se Intel v historii častěji vracel (viz níže), výhoda ale není prokázaná."
+                      : "Rozklad používá betu za poslední rok a ceny hlavní seance; před otevřením trhu se ukazuje poslední celá seance."}
+                </p>
+              </Note>
+            ) : null}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SignalCard
+              title="Pokles o 3 % a víc spolu se sektorem, držet 5 dní"
+              source="chan"
+              verdict={edgeVerdict({
+                n: model.study.sector.n,
+                low: model.study.sector.excessLowPct,
+                high: model.study.sector.excessHighPct,
+              })}
+              today={
+                kind === "SECTOR"
+                  ? "Platí (" +
+                    (today ? (running ? "dnes zatím" : "dnes") : "poslední seance") +
+                    ")."
+                  : "Neplatí."
+              }
+            >
+              {groupText(model.study.sector, model.study.baselinePct)}
+              <p>Vlastní pohyb Intelu byl menší než 1 %; pokles přišel se sektorem.</p>
+            </SignalCard>
+            <SignalCard
+              title="Vlastní pokles Intelu o 3 % a víc, držet 5 dní"
+              source="chan"
+              verdict={edgeVerdict({
+                n: model.study.own.n,
+                low: model.study.own.excessLowPct,
+                high: model.study.own.excessHighPct,
+              })}
+              today={
+                kind === "OWN"
+                  ? "Platí (" +
+                    (today ? (running ? "dnes zatím" : "dnes") : "poslední seance") +
+                    ")."
+                  : "Neplatí."
+              }
+            >
+              {groupText(model.study.own, model.study.baselinePct)}
+              <p>
+                Studie: po zprávách cena spíš pokračuje stejným směrem, po velkém pohybu bez zprávy
+                se spíš vrací; nejvíc u menších firem.
+              </p>
+            </SignalCard>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[360px] text-sm">
+                <thead className="text-left text-muted-foreground">
+                  <tr>
+                    <th className="py-2">Korelace denních pohybů s Intelem</th>
+                    <th>Poslední rok</th>
+                    <th>10 let</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {model.table.map((row) => (
+                    <tr key={row.symbol} className="border-t border-border">
+                      <td className="py-2">{SECTOR_NAMES[row.symbol] ?? row.symbol}</td>
+                      <td className="num">{coefficient(row.recent)}</td>
+                      <td className="num">{coefficient(row.full)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="space-y-3">
+              <Note kind="info" title="Jak číst korelaci">
+                <p>
+                  1 = pohyb vždy stejným směrem a ve stejném poměru, 0 = nezávislé pohyby. Korelace
+                  0,45 s Nvidií znamená, že společný je asi pětina denního pohybu (0,45²).
+                </p>
+              </Note>
+              <Note kind="warn" title="Více čipových akcií = jedna sázka">
+                <p>
+                  Při výprodeji sektoru padají najednou. Pro plán rizika je počítejte jako jednu
+                  pozici. Profesionálové sázku na sektor „vyruší“ prodejem fondu nakrátko; v běžném
+                  účtu Trading 212 to nejde (jen přes CFD).
+                </p>
+              </Note>
+            </div>
+          </div>
+        </>
+      ) : null}
+      {sectorQuery.data?.errors.map((error) => (
+        <p key={error} role="alert" className="text-sm text-warning">
+          {error}
+        </p>
+      ))}
+    </Section>
   );
 }

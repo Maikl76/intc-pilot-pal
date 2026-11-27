@@ -1,5 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseDailyHistory, parseIntradayHistory, type DailyHistory } from "./pilot-history.mjs";
+import {
+  parseDailyHistory,
+  parseIntradayHistory,
+  parseLiveMeta,
+  type DailyHistory,
+  type LiveMeta,
+} from "./pilot-history.mjs";
 import type { MarketData } from "./pilot-engine.mjs";
 
 export interface HistoryResponse {
@@ -131,6 +137,91 @@ export const getIntelHourly = createServerFn({ method: "GET" }).handler(
       return await hourlyPending;
     } finally {
       hourlyPending = undefined;
+    }
+  },
+);
+
+export const SECTOR_SYMBOLS = ["SOXX", "QQQ", "NVDA", "AMD", "TSM", "MU", "AVGO"] as const;
+export interface SectorSeries {
+  symbol: string;
+  dates: string[];
+  values: number[];
+}
+export interface SectorResponse {
+  fetchedAt: number;
+  series: SectorSeries[];
+  /** Poslední cena hlavní seance INTC a SOXX ze stejného zdroje (regularMarketPrice). */
+  live: { INTC: LiveMeta | null; SOXX: LiveMeta | null };
+  errors: string[];
+  source: string;
+}
+// Denní historie srovnávacích titulů (10 let, obnova po 6 h) a aktuální cena INTC a SOXX (po 2 min).
+const SECTOR_MS = 6 * 3600000,
+  SECTOR_KEEP_MS = 3 * 86400000,
+  LIVE_MS = 120000,
+  LIVE_KEEP_MS = 15 * 60000;
+const sector = new Map<string, { at: number; value: SectorSeries }>();
+const LIVE_SYMBOLS = ["INTC", "SOXX"] as const;
+const liveCache = new Map<string, { at: number; value: LiveMeta | null }>();
+let sectorPending: Promise<SectorResponse> | undefined;
+
+export const getSectorData = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SectorResponse> => {
+    if (sectorPending) return sectorPending;
+    sectorPending = (async () => {
+      const now = Date.now(),
+        errors: string[] = [];
+      await Promise.all(
+        SECTOR_SYMBOLS.map(async (symbol) => {
+          const cached = sector.get(symbol);
+          if (cached && now - cached.at < SECTOR_MS) return;
+          try {
+            const raw = await fetchYahoo(
+              "/v8/finance/chart/" + symbol + "?range=10y&interval=1d&events=div%2Csplits",
+            );
+            const history = parseDailyHistory(raw, now, symbol);
+            sector.set(symbol, {
+              at: now,
+              value: { symbol, dates: history.dates, values: history.values },
+            });
+          } catch (error) {
+            errors.push(symbol + ": " + reason(error) + ".");
+          }
+        }),
+      );
+      await Promise.all(
+        LIVE_SYMBOLS.map(async (symbol) => {
+          const cached = liveCache.get(symbol);
+          if (cached && now - cached.at < LIVE_MS) return;
+          try {
+            const raw = await fetchYahoo("/v8/finance/chart/" + symbol + "?range=1d&interval=1m");
+            liveCache.set(symbol, { at: now, value: parseLiveMeta(raw, symbol, now) });
+          } catch (error) {
+            errors.push(symbol + " aktuální cena: " + reason(error) + ".");
+          }
+        }),
+      );
+      const liveOf = (symbol: string) => {
+        const cached = liveCache.get(symbol);
+        return cached && now - cached.at < LIVE_KEEP_MS ? cached.value : null;
+      };
+      const series = SECTOR_SYMBOLS.flatMap((symbol) => {
+        const cached = sector.get(symbol);
+        return cached && now - cached.at < SECTOR_KEEP_MS ? [cached.value] : [];
+      });
+      return {
+        fetchedAt: now,
+        series,
+        live: { INTC: liveOf("INTC"), SOXX: liveOf("SOXX") },
+        errors,
+        source:
+          "Yahoo Finance · denní data 10 let (SOXX, QQQ, NVDA, AMD, TSM, MU, AVGO) · neoficiální rozhraní",
+      };
+    })();
+    try {
+      return await sectorPending;
+    } finally {
+      sectorPending = undefined;
     }
   },
 );
