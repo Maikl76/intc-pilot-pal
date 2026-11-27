@@ -4,6 +4,7 @@
 
 ## Co lze dělat
 
+- **Prognóza výdělku:** rozpětí ceny a hodnoty dlouhodobé pozice na 1 týden až 1 rok se zpětnou kontrolou na 10 letech historie INTC; denní obchodování porovnané s náhodou (úspěšnost a průměr na akcii s intervaly, test proti náhodným nákupům, potřebný počet obchodů); souhrn obou částí kapitálu; rozbor skutečných obchodů z výpisu Trading 212, který se počítá jen v prohlížeči.
 - **Obchodní přehled:** skutečná poslední dostupná cena, čas pozorování a zdroj, stav seance, minutový graf, diagnostika výpadků a volitelný samostatný graf TradingView.
 - **Tržní cvičení:** ruční virtuální nákup a celý/částečný prodej podle použitelné tržní kotace. Výsledky zahrnují zadané modelové náklady.
 - **Vlastní scénář:** samostatný virtuální účet s ručně nastavenou, jednoznačně fiktivní cenou. Funguje i bez datového zdroje nebo mimo burzovní hodiny. Nesdílí pozice ani výsledky s tržním cvičením.
@@ -72,6 +73,34 @@ JSON záloha obsahuje oba cvičné účty, nastavení a dlouhodobou evidenci. Im
 - Propad se měří z close každé svíčky, denní propad samostatně. Model nezná skutečnou frontu pokynů, order book ani maximální intrabar ztrátu. Cvičný risk lock není součástí historické optimalizace.
 - 1 728 variant, tréninkové skóre P/L − 0,5 × propad, alespoň pět vstupů. Výběr z mnoha variant na krátkých datech se snadno přizpůsobí náhodě. Pět vstupů není důkaz výhody; opakované ladění podle testu z něj udělá součást výběru.
 - Diagnostika dosažení cíle po skutečném nákupu ignoruje vstupní svíčku, vyžaduje úplný horizont; high nad cílem není důkaz skutečného plnění.
+
+## Metodika prognózy
+
+Prognóza ukazuje rozpětí a pravděpodobnosti, ne slib výsledku. Výpočty jsou v `src/lib/pilot-forecast.mjs` a `src/lib/pilot-review.mjs` (čisté funkce, testy se syntetickými daty se známým výsledkem). Náhodné převzorkování má pevné semínko: stejná data dávají stejný výsledek.
+
+### Dlouhodobá část
+
+- Model: ln(cena za t / dnešní cena) ~ N(μ·t, σ²·t), t v letech (252 obchodních dní). σ = výběrová směrodatná odchylka denních log výnosů z upravených závěrů (dividendy) za zvolené okno, výchozí posledních 252 dní, × √252. μ = předpoklad trendu zadaný uživatelem, výchozí 0 (medián = dnešní cena). Kurz USD/CZK je modelový z Nastavení a nemodeluje se.
+- Zpětná kontrola: pro každý den historie se σ spočítá jen z předchozích dní, sestaví se 80% pásmo pro horizont a ověří se, zda skutečná cena skončila uvnitř (pokrytí). Směr: znaménko výnosu za poslední okno proti znaménku budoucího výnosu. Období se překrývají; nezávislých období je přibližně (počet dní − okno) / horizont.
+- Ověření na skutečných datech INTC (stav k 25. 11. 2026): 80% pásmo s oknem 1 rok a nulovým trendem obsáhlo skutečnost v 80–83 % případů pro 1 týden až 3 měsíce a v 73–82 % pro 6–12 měsíců (2000–2026 i 2016–2026). Použití minulého trendu jako předpovědi pokrytí zhoršilo (u 6–12 měsíců na 55–63 %). Směr podle minulého roku vyšel ve 40–52 % případů, tedy nepředpovídá. Tlusté konce: 95% pásmo obsáhlo skutečnost jen ve 91–94 % případů.
+
+### Denní obchodování
+
+- Náhoda: u ceny bez trendu je pravděpodobnost dosažení cíle +a dřív než stopu −b rovna b / (a + b), pro +1/−1,5 USD tedy 60 %. Bez výhody je očekávaný výsledek obchodu −2 × náklady na akcii. Na 60 seancích 5min dat INTC (září–listopad 2026) měly náhodné vstupy se stejnými výstupy průměr −0,04 USD na akcii.
+- Pravidla z Nastavení se přehrají enginem `run` (pouze úplné hlavní seance). Interval průměru na akcii: percentilový bootstrap (2 000 převzorkování). Interval úspěšnosti: Wilsonův.
+- Test proti náhodě: 2 000× se vybere stejný počet různých dní, jako má pravidlo obchodů, v každém náhodná svíčka do konce vstupního okna; výstup kopíruje logiku `run` (shodu ověřuje test). p = (počet pokusů se stejným nebo lepším průměrem + 1) / 2 001.
+- Orientační potřebný počet obchodů: ⌈(1,96 · SD / průměr)²⌉. Měsíční rozpětí: dvojí převzorkování denních výsledků (nejistota výhody i průběhu měsíce).
+- Pravidla vybraná optimalizací na stejných datech vycházejí příliš dobře; posuzuj je na datech, která při výběru nebyla.
+
+### Skutečné obchody
+
+- Výpis Trading 212 se načítá stávajícím importem (jen BUY/SELL INTC v USD) a zůstává v paměti prohlížeče.
+- Párování LIFO (prodej uzavře nejnovější nákup) dělí výsledek na prodané obchody a neprodané nákupy. Celkový výsledek = prodeje − nákupy + držené akcie × cena a na párování nezávisí. Průměrná cena držené pozice se počítá metodou průměru jako u brokera.
+- Srovnání: nejvyšší kapitál vázaný v INTC, koupený za cenu prvního nákupu a držený do dneška. Poplatky za směnu měn a broker Result se uvádějí zvlášť podle měny.
+
+### Data prognózy
+
+Server čte Yahoo Finance chart API: denní OHLC 10 let (obnova po 6 h, při výpadku nejvýše 3 dny stará odpověď) a 5min svíčky hlavní seance za 60 dní (obnova po 15 min, při výpadku nejvýše 1 den stará). Rozhraní je neoficiální; chyba zdroje se zobrazí. Delší intradenní historii lze nahrát v Backtestu a vybrat v Prognóze.
 
 ## Vývoj
 

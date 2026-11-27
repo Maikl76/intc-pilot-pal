@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { usePilot, usd, czk, pct, dateTime } from "@/lib/pilot-store";
 import { getMarketContext } from "@/lib/pilot-context.functions";
 import { payoff } from "@/lib/pilot-context.mjs";
+import { chanceTargetFirst } from "@/lib/pilot-forecast.mjs";
 
 const signed = (v: number) => (v > 0 ? "+" : "") + pct(v);
 function Figure({
@@ -201,6 +202,8 @@ export function RiskWorkbench() {
       return null;
     }
   }, [qty, target, stop, fee, probability]);
+  // Úspěšnost bez jakékoli výhody (náhodná procházka): stop / (cíl + stop).
+  const chance = chanceTargetFirst(target, stop);
   const validPrice = Number.isFinite(price) && price > 0;
   const controls = [
     { key: "qty", label: "Počet akcií", value: qty, change: setQty, min: 1, step: 1 },
@@ -314,6 +317,18 @@ export function RiskWorkbench() {
                     Tento posuvník je hypotéza. Úspěšnost nelze odvodit z počtu obchodů, které už
                     skončily ziskem, pokud ztrátové pozice dál čekají na prodej.
                   </p>
+                  {chance != null ? (
+                    <p className="mt-3 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
+                      Pro srovnání: při zcela náhodném pohybu ceny dosáhne cena cíle dřív než
+                      stopu v <strong className="num">{pct(chance * 100)}</strong> případů. Zisk
+                      začíná až nad {pct(result.breakEvenPct)}. Odhad z dat a srovnání s
+                      náhodnými nákupy najdeš v{" "}
+                      <Link to="/prognoza" className="underline">
+                        Prognóze
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <span className="field-label">

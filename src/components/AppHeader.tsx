@@ -4,6 +4,7 @@ import { usePilot, usd, dateTime } from "@/lib/pilot-store";
 import { ageMinutes, marketPhase } from "@/lib/pilot-quotes.mjs";
 const NAV = [
   { to: "/", label: "Obchodní přehled" },
+  { to: "/prognoza", label: "Prognóza" },
   { to: "/zpravy", label: "Zprávy a důkazy" },
   { to: "/riziko", label: "Riziko a scénáře" },
   { to: "/historie", label: "Historie" },
