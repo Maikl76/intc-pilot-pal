@@ -5,6 +5,7 @@
 ## Co lze dělat
 
 - **Prognóza výdělku:** rozpětí ceny a hodnoty dlouhodobé pozice na 1 týden až 1 rok se zpětnou kontrolou na 10 letech historie INTC; denní obchodování porovnané s náhodou (úspěšnost a průměr na akcii s intervaly, test proti náhodným nákupům, potřebný počet obchodů); souhrn obou částí kapitálu; rozbor skutečných obchodů z výpisu Trading 212, který se počítá jen v prohlížeči.
+- **Plán a signály:** postupy profesionálních obchodníků dostupné drobnému investorovi: velikost pozice podle rizika (stop podle ATR, riziko v % kapitálu, cíl v násobcích rizika, denní limit, dopad přikoupení ve ztrátě), známé obchodní signály z odborné literatury živě přezkoušené na historii INTC s verdiktem a kontrola nákladů provedení.
 - **Obchodní přehled:** skutečná poslední dostupná cena, čas pozorování a zdroj, stav seance, minutový graf, diagnostika výpadků a volitelný samostatný graf TradingView.
 - **Tržní cvičení:** ruční virtuální nákup a celý/částečný prodej podle použitelné tržní kotace. Výsledky zahrnují zadané modelové náklady.
 - **Vlastní scénář:** samostatný virtuální účet s ručně nastavenou, jednoznačně fiktivní cenou. Funguje i bez datového zdroje nebo mimo burzovní hodiny. Nesdílí pozice ani výsledky s tržním cvičením.
@@ -101,6 +102,19 @@ Prognóza ukazuje rozpětí a pravděpodobnosti, ne slib výsledku. Výpočty js
 ### Data prognózy
 
 Server čte Yahoo Finance chart API: denní OHLC 10 let (obnova po 6 h, při výpadku nejvýše 3 dny stará odpověď) a 5min svíčky hlavní seance za 60 dní (obnova po 15 min, při výpadku nejvýše 1 den stará). Rozhraní je neoficiální; chyba zdroje se zobrazí. Delší intradenní historii lze nahrát v Backtestu a vybrat v Prognóze.
+
+## Metodika plánu a signálů
+
+Výpočty jsou v `src/lib/pilot-edge.mjs` (čisté funkce, testy se syntetickými daty se známým výsledkem).
+
+- **Velikost pozice:** riziko v USD = kapitál × riziko % ÷ kurz; ztráta na akcii = vstup − stop + 2 × náklady; počet akcií = ⌊riziko ÷ ztráta na akcii⌋, nejvýše kolik dovolí kapitál. Výchozí stop = vstup − 1 × ATR(14) z denních dat; cíl = vstup + R × (vstup − stop).
+- **Kolísání:** 20denní volatilita proti mediánu 20denních volatilit za předchozí rok; násobek velikosti = obvyklá ÷ současná v mezích 0,25–1. Zpětné srovnání bez pohledu do budoucnosti.
+- **Signály:** propad o 3 % / 5 % a víc a výnos dalších 5 dní (krátkodobý návrat, Lehmann 1990; události se nepřekrývají, bootstrap interval rozdílu proti běžnému týdnu); držení nad 200denním průměrem (obdoba Faber 2007); výnos přes noc proti dni (Lou, Polk, Skouras 2019); intradenní momentum (Gao, Han, Li, Zhou 2018) a průraz po první hodině (zjednodušení Zarattini, Barbon, Aziz 2024) na hodinových svíčkách za 2 roky. Verdikt „Výhoda“ jen při ≥ 30 případech a celém 95% intervalu nad nulou; u rizikových nástrojů „Snižuje riziko“, když klesne volatilita i největší propad.
+- **Ověření na skutečných datech INTC (stav k 25. 11. 2026, data 10 let / 2 roky hodinových svíček):** žádný z návratových signálů neprokázal výhodu. Propad ≥ 3 %: +0,75 % proti běžnému týdnu, interval −0,59 až +2,16 %. Propad ≥ 5 %: −1,62 %, interval −3,29 až +0,07 %. Intradenní momentum: korelace 0,000. Průraz po první hodině: rozdíl −20 až +22 bp. Řízení podle kolísání snížilo největší propad z −71 % na −65 % a volatilitu z 51 % na 41 %; filtr 200denního průměru propad na −66 %. Výnos byl v obou případech o něco nižší.
+- **Vynecháno záměrně:** posun ceny po výsledcích hospodaření u velkých firem vymizel (Martineau 2022); obchody insiderů mají hodnotu jen u neobvyklých nákupů (Cohen, Malloy, Pomorski 2012); očekávaný pohyb z opcí vyžaduje placená data (Yahoo options API vyžaduje přihlášení).
+- **Kontext výzkumu:** méně než 1 % denních obchodníků na Tchaj-wanu bylo spolehlivě ziskových (Barber, Lee, Liu, Odean 2014); z Brazilců, kteří denně obchodovali přes 300 dní, prodělalo 97 % (Chague, De-Losso, Giovannetti 2020); investoři drží ztráty a prodávají zisky příliš brzy (Odean 1998). Úplný seznam odkazů je na stránce Plán a signály.
+
+Hodinové svíčky čte serverová funkce `getIntelHourly` (Yahoo, 2 roky, obnova po hodině, při výpadku nejvýše den stará odpověď).
 
 ## Vývoj
 

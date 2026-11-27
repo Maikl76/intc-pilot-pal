@@ -5,6 +5,9 @@ export interface DailyHistory {
   dates: string[];
   closes: number[];
   values: number[];
+  opens: number[];
+  highs: number[];
+  lows: number[];
   first: string;
   last: string;
   stale: boolean;

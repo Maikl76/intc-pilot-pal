@@ -15,6 +15,7 @@ import { Route as HistorieRouteImport } from './routes/historie'
 import { Route as NastaveniRouteImport } from './routes/nastaveni'
 import { Route as PrognozaRouteImport } from './routes/prognoza'
 import { Route as RizikoRouteImport } from './routes/riziko'
+import { Route as SignalyRouteImport } from './routes/signaly'
 import { Route as ZpravyRouteImport } from './routes/zpravy'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const RizikoRoute = RizikoRouteImport.update({
   path: '/riziko',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignalyRoute = SignalyRouteImport.update({
+  id: '/signaly',
+  path: '/signaly',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ZpravyRoute = ZpravyRouteImport.update({
   id: '/zpravy',
   path: '/zpravy',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/nastaveni': typeof NastaveniRoute
   '/prognoza': typeof PrognozaRoute
   '/riziko': typeof RizikoRoute
+  '/signaly': typeof SignalyRoute
   '/zpravy': typeof ZpravyRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/nastaveni': typeof NastaveniRoute
   '/prognoza': typeof PrognozaRoute
   '/riziko': typeof RizikoRoute
+  '/signaly': typeof SignalyRoute
   '/zpravy': typeof ZpravyRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/nastaveni': typeof NastaveniRoute
   '/prognoza': typeof PrognozaRoute
   '/riziko': typeof RizikoRoute
+  '/signaly': typeof SignalyRoute
   '/zpravy': typeof ZpravyRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/nastaveni'
     | '/prognoza'
     | '/riziko'
+    | '/signaly'
     | '/zpravy'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/nastaveni'
     | '/prognoza'
     | '/riziko'
+    | '/signaly'
     | '/zpravy'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/nastaveni'
     | '/prognoza'
     | '/riziko'
+    | '/signaly'
     | '/zpravy'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   NastaveniRoute: typeof NastaveniRoute
   PrognozaRoute: typeof PrognozaRoute
   RizikoRoute: typeof RizikoRoute
+  SignalyRoute: typeof SignalyRoute
   ZpravyRoute: typeof ZpravyRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RizikoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signaly': {
+      id: '/signaly'
+      path: '/signaly'
+      fullPath: '/signaly'
+      preLoaderRoute: typeof SignalyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/zpravy': {
       id: '/zpravy'
       path: '/zpravy'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   NastaveniRoute: NastaveniRoute,
   PrognozaRoute: PrognozaRoute,
   RizikoRoute: RizikoRoute,
+  SignalyRoute: SignalyRoute,
   ZpravyRoute: ZpravyRoute,
 }
 export const routeTree = rootRouteImport
