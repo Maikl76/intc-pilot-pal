@@ -90,3 +90,47 @@ export const getIntelHistory = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+export interface HourlyResponse {
+  fetchedAt: number;
+  hourly: MarketData | null;
+  hourlyFetchedAt: number | null;
+  errors: string[];
+  source: string;
+}
+// Hodinové svíčky za 2 roky pro ověření intradenních signálů; obnova po hodině.
+const HOURLY_MS = 3600000,
+  HOURLY_KEEP_MS = 86400000;
+let hourly: { at: number; value: MarketData } | undefined;
+let hourlyPending: Promise<HourlyResponse> | undefined;
+
+export const getIntelHourly = createServerFn({ method: "GET" }).handler(
+  async (): Promise<HourlyResponse> => {
+    if (hourlyPending) return hourlyPending;
+    hourlyPending = (async () => {
+      const now = Date.now(),
+        errors: string[] = [];
+      if (!hourly || now - hourly.at >= HOURLY_MS) {
+        try {
+          const raw = await fetchYahoo("/v8/finance/chart/INTC?range=730d&interval=60m");
+          hourly = { at: now, value: parseIntradayHistory(raw, now) };
+        } catch (error) {
+          errors.push("Hodinové svíčky: " + reason(error) + ".");
+        }
+      }
+      const usable = hourly && now - hourly.at < HOURLY_KEEP_MS ? hourly : undefined;
+      return {
+        fetchedAt: now,
+        hourly: usable?.value ?? null,
+        hourlyFetchedAt: usable?.at ?? null,
+        errors,
+        source: "Yahoo Finance · hodinové svíčky 2 roky · neoficiální rozhraní",
+      };
+    })();
+    try {
+      return await hourlyPending;
+    } finally {
+      hourlyPending = undefined;
+    }
+  },
+);

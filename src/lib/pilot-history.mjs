@@ -21,9 +21,11 @@ function chartOf(payload) {
 }
 
 /**
- * Denní závěry. Pro výnosy se používá upravený závěr (adjclose: dividendy, splity),
- * pokud ho zdroj dodá; jinak surový závěr a `adjusted: false`. Dnešní (neukončený)
- * den se vynechává i po uzavření trhu, stejně jako v Kontextu pohybu.
+ * Denní OHLC. Pro výnosy se používá upravený závěr (adjclose: dividendy, splity),
+ * pokud ho zdroj dodá; jinak surový závěr a `adjusted: false`. Open/high/low se
+ * upravují stejným poměrem (upravený / surový závěr), aby řady byly souměřitelné.
+ * Dnešní (neukončený) den se vynechává i po uzavření trhu, stejně jako v Kontextu pohybu.
+ * Řádky s neúplným nebo nekonzistentním OHLC se vynechají.
  */
 export function parseDailyHistory(payload, now = Date.now()) {
   const { chart, quote } = chartOf(payload);
@@ -34,10 +36,27 @@ export function parseDailyHistory(payload, now = Date.now()) {
   chart.timestamp.forEach((seconds, i) => {
     if (!positive(seconds)) return;
     const date = ny(seconds * 1000).date,
+      open = quote.open?.[i],
+      high = quote.high?.[i],
+      low = quote.low?.[i],
       close = quote.close?.[i],
       value = adjusted ? adj[i] : close;
-    if (date >= today || !positive(close) || !positive(value)) return;
-    byDate.set(date, { date, close: round4(close), value: round4(value) });
+    if (
+      date >= today ||
+      ![open, high, low, close, value].every(positive) ||
+      low > Math.min(open, close) ||
+      high < Math.max(open, close)
+    )
+      return;
+    const factor = value / close;
+    byDate.set(date, {
+      date,
+      close: round4(close),
+      value: round4(value),
+      open: round4(open * factor),
+      high: round4(high * factor),
+      low: round4(low * factor),
+    });
   });
   const rows = [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   if (rows.length < 300) throw new Error("Méně než 300 denních záznamů; na prognózu to nestačí.");
@@ -46,21 +65,27 @@ export function parseDailyHistory(payload, now = Date.now()) {
     dates: rows.map((row) => row.date),
     closes: rows.map((row) => row.close),
     values: rows.map((row) => row.value),
+    opens: rows.map((row) => row.open),
+    highs: rows.map((row) => row.high),
+    lows: rows.map((row) => row.low),
     first: rows[0].date,
     last: rows[rows.length - 1].date,
     stale: now - Date.parse(rows[rows.length - 1].date + "T21:00:00Z") > 7 * 86400000,
   };
 }
 
+const INTERVALS = Object.freeze({ "1m": 1, "5m": 5, "60m": 60, "1h": 60 });
+
 /**
- * Svíčky 1 nebo 5 min ve formátu enginu (ts, o, h, l, c, v, date, minute ET).
+ * Svíčky 1, 5 nebo 60 min ve formátu enginu (ts, o, h, l, c, v, date, minute ET).
  * Nekonzistentní OHLC, duplicitní časy a budoucí svíčky se vyřadí (počet v `rejected`).
- * Neúplné seance (např. dnešní) vyřadí až `sessions()` v enginu.
+ * Neúplné seance (např. dnešní) vyřadí až `sessions()` v enginu (1 a 5 min)
+ * nebo `hourlySessions()` v pilot-edge.mjs (60 min).
  */
 export function parseIntradayHistory(payload, now = Date.now()) {
   const { chart, meta, quote } = chartOf(payload);
-  const interval = meta.dataGranularity === "1m" ? 1 : meta.dataGranularity === "5m" ? 5 : null;
-  if (interval === null) throw new Error("Zdroj nevrátil 1min ani 5min svíčky.");
+  const interval = INTERVALS[meta.dataGranularity] ?? null;
+  if (interval === null) throw new Error("Zdroj nevrátil 1min, 5min ani hodinové svíčky.");
   const seen = new Set(),
     bars = [];
   let rejected = 0;

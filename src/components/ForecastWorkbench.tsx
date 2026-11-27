@@ -1,18 +1,8 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import {
-  ChartSpline,
-  CircleCheck,
-  Dices,
-  Info,
-  RefreshCw,
-  Scale,
-  TriangleAlert,
-  Upload,
-  Wallet,
-} from "lucide-react";
+import { ChartSpline, Dices, RefreshCw, Scale, Upload, Wallet } from "lucide-react";
 import {
   Area,
   CartesianGrid,
@@ -25,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
+import { Figure, Note, Section } from "@/components/InfoBlocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePilot, usd, czk, pct, dateTime } from "@/lib/pilot-store";
@@ -44,6 +35,7 @@ import {
   volatility,
 } from "@/lib/pilot-forecast.mjs";
 import { reviewTrades, type TradeReview } from "@/lib/pilot-review.mjs";
+import { messageOf, number, plusCzk, plusUsd, share, toneOf } from "@/lib/format";
 
 const HORIZONS = [
   { days: 5, label: "1 týden" },
@@ -67,17 +59,6 @@ const fanLabel = (day: number) =>
   day === 0 ? "dnes" : day === 21 ? "1 měs." : day % 21 === 0 ? day / 21 + " měs." : day + " dní";
 const BAND = "#44d7cf";
 
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const share = (value: number | null | undefined, digits = 0) =>
-  value == null || !Number.isFinite(value)
-    ? "—"
-    : (value * 100).toLocaleString("cs-CZ", { maximumFractionDigits: digits }) + " %";
-const plusUsd = (value: number) => (value > 0 ? "+" : "") + usd(value);
-const plusCzk = (value: number) => (value > 0 ? "+" : "") + czk(value);
-const toneOf = (value: number) =>
-  value > 0 ? "text-success" : value < 0 ? "text-destructive" : "";
-const number = (value: number, digits = 2) =>
-  value.toLocaleString("cs-CZ", { maximumFractionDigits: digits });
 const clock = (minute: number) =>
   String(Math.floor(minute / 60)).padStart(2, "0") + ":" + String(minute % 60).padStart(2, "0");
 
@@ -105,82 +86,6 @@ function describeRules(p: Settings) {
     hold,
     "náklady " + usd(p.fee) + " na akcii a stranu",
   ].join(" · ");
-}
-
-function Figure({
-  label,
-  value,
-  detail,
-  color = "",
-}: {
-  label: string;
-  value: string;
-  detail: ReactNode;
-  color?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background/35 p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className={"num mt-2 text-2xl font-semibold " + color}>{value}</p>
-      <div className="mt-2 text-sm text-muted-foreground">{detail}</div>
-    </div>
-  );
-}
-
-const NOTE_STYLE = {
-  good: ["border-success/40 bg-success/5", "text-success"],
-  warn: ["border-warning/40 bg-warning/5", "text-warning"],
-  bad: ["border-destructive/40 bg-destructive/5", "text-destructive"],
-  info: ["border-primary/30 bg-primary/5", "text-primary"],
-} as const;
-function Note({
-  kind,
-  title,
-  children,
-}: {
-  kind: keyof typeof NOTE_STYLE;
-  title: string;
-  children: ReactNode;
-}) {
-  const [box, icon] = NOTE_STYLE[kind];
-  const Icon = kind === "good" ? CircleCheck : kind === "info" ? Info : TriangleAlert;
-  return (
-    <div className={"flex gap-3 rounded-xl border p-4 text-sm " + box}>
-      <Icon className={"mt-0.5 size-5 shrink-0 " + icon} />
-      <div>
-        <p className="font-semibold">{title}</p>
-        <div className="mt-1 space-y-2 text-muted-foreground">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function Section({
-  icon,
-  eyebrow,
-  title,
-  intro,
-  children,
-}: {
-  icon: ReactNode;
-  eyebrow: string;
-  title: string;
-  intro: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="overflow-hidden rounded-2xl">
-      <div className="border-b border-border bg-primary/5 p-5 sm:p-6">
-        <p className="eyebrow">{eyebrow}</p>
-        <div className="mt-1 flex items-center gap-3">
-          {icon}
-          <h2 className="text-xl font-semibold">{title}</h2>
-        </div>
-        <div className="mt-2 max-w-4xl text-sm text-muted-foreground">{intro}</div>
-      </div>
-      <div className="space-y-6 p-5 sm:p-6">{children}</div>
-    </Card>
-  );
 }
 
 interface FanPoint {
