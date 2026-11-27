@@ -5,7 +5,7 @@
 ## Co lze dělat
 
 - **Prognóza výdělku:** rozpětí ceny a hodnoty dlouhodobé pozice na 1 týden až 1 rok se zpětnou kontrolou na 10 letech historie INTC; denní obchodování porovnané s náhodou (úspěšnost a průměr na akcii s intervaly, test proti náhodným nákupům, potřebný počet obchodů); souhrn obou částí kapitálu; rozbor skutečných obchodů z výpisu Trading 212, který se počítá jen v prohlížeči.
-- **Plán a signály:** postupy profesionálních obchodníků dostupné drobnému investorovi: velikost pozice podle rizika (stop podle ATR, riziko v % kapitálu, cíl v násobcích rizika, denní limit, dopad přikoupení ve ztrátě), známé obchodní signály z odborné literatury živě přezkoušené na historii INTC s verdiktem a kontrola nákladů provedení.
+- **Plán a signály:** postupy profesionálních obchodníků dostupné drobnému investorovi: velikost pozice podle rizika (stop podle ATR, riziko v % kapitálu, cíl v násobcích rizika, denní limit, dopad přikoupení ve ztrátě), známé obchodní signály z odborné literatury živě přezkoušené na historii INTC s verdiktem, rozklad pohybu Intelu na část sektoru a vlastní část s korelacemi k Nvidii, AMD, TSMC a dalším, a kontrola nákladů provedení.
 - **Obchodní přehled:** skutečná poslední dostupná cena, čas pozorování a zdroj, stav seance, minutový graf, diagnostika výpadků a volitelný samostatný graf TradingView.
 - **Tržní cvičení:** ruční virtuální nákup a celý/částečný prodej podle použitelné tržní kotace. Výsledky zahrnují zadané modelové náklady.
 - **Vlastní scénář:** samostatný virtuální účet s ručně nastavenou, jednoznačně fiktivní cenou. Funguje i bez datového zdroje nebo mimo burzovní hodiny. Nesdílí pozice ani výsledky s tržním cvičením.
@@ -113,6 +113,15 @@ Výpočty jsou v `src/lib/pilot-edge.mjs` (čisté funkce, testy se syntetickým
 - **Ověření na skutečných datech INTC (stav k 25. 11. 2026, data 10 let / 2 roky hodinových svíček):** žádný z návratových signálů neprokázal výhodu. Propad ≥ 3 %: +0,75 % proti běžnému týdnu, interval −0,59 až +2,16 %. Propad ≥ 5 %: −1,62 %, interval −3,29 až +0,07 %. Intradenní momentum: korelace 0,000. Průraz po první hodině: rozdíl −20 až +22 bp. Řízení podle kolísání snížilo největší propad z −71 % na −65 % a volatilitu z 51 % na 41 %; filtr 200denního průměru propad na −66 %. Výnos byl v obou případech o něco nižší.
 - **Vynecháno záměrně:** posun ceny po výsledcích hospodaření u velkých firem vymizel (Martineau 2022); obchody insiderů mají hodnotu jen u neobvyklých nákupů (Cohen, Malloy, Pomorski 2012); očekávaný pohyb z opcí vyžaduje placená data (Yahoo options API vyžaduje přihlášení).
 - **Kontext výzkumu:** méně než 1 % denních obchodníků na Tchaj-wanu bylo spolehlivě ziskových (Barber, Lee, Liu, Odean 2014); z Brazilců, kteří denně obchodovali přes 300 dní, prodělalo 97 % (Chague, De-Losso, Giovannetti 2020); investoři drží ztráty a prodávají zisky příliš brzy (Odean 1998). Úplný seznam odkazů je na stránce Plán a signály.
+
+### Sektor a Intel
+
+Výpočty jsou v `src/lib/pilot-sector.mjs`, data čte serverová funkce `getSectorData`: denní data 10 let pro SOXX, QQQ, NVDA, AMD, TSM, MU a AVGO (obnova po 6 h) a poslední cenu hlavní seance INTC a SOXX (po 2 min).
+
+- **Souběh pohybů:** korelace denních log výnosů s INTC za poslední rok a za 10 let na společných obchodních dnech; beta a R² Intelu vůči SOXX za posledních 252 dní. Pohyby jsou současné: korelace dnešního pohybu sektoru se zítřejším pohybem Intelu byla záporná a slabá (−0,05 až −0,11).
+- **Rozklad pohybu:** ln(1 + INTC) = beta × ln(1 + SOXX) + vlastní část. Dnešní rozklad se počítá z ceny hlavní seance obou titulů ze stejného dne; před otevřením se ukazuje poslední celá seance.
+- **Poklesy podle příčiny** (myšlenka Chan 2003: po zprávě cena spíš pokračuje, po pohybu bez zprávy se spíš vrací). Pokles INTC o 3 % a víc „se sektorem“ má vlastní část nad −1 %, „vlastní“ pokles má vlastní část −3 % a horší. Beta se počítá z předchozích 252 dní; skupiny se nepřekrývají. Sleduje se výnos za dalších 5 dní proti běžnému týdnu.
+- **Ověření na skutečných datech (k 25. 11. 2026):** pokles se sektorem 58×, za 5 dní +2,79 % (95% interval +0,26 až +5,41 %); rozdíl proti běžnému týdnu +2,45 % (−0,08 až +5,07 %), tedy výhoda neprokázaná, ale stejný směr ve všech podobdobích i hranicích. Vlastní pokles 66×, −0,54 % (−2,12 až +1,23 %), bez odrazu. Korelace s INTC za poslední rok: SOXX 0,77, AMD 0,69, QQQ 0,68, MU 0,63, TSM 0,60, AVGO 0,48, NVDA 0,45.
 
 Hodinové svíčky čte serverová funkce `getIntelHourly` (Yahoo, 2 roky, obnova po hodině, při výpadku nejvýše den stará odpověď).
 
